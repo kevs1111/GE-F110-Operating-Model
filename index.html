@@ -1,0 +1,1916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Interactive 3D model of the GE F110-GE-129 afterburning turbofan (F-16C) driven by a calibrated Brayton cycle model.">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>F110-GE-129 Operating Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: full-bleed 3D test cell; floating instrument panels left (view) and right (cockpit); systems bar bottom. Single dark "test cell" look by choice. */
+:root{
+  color-scheme: dark;
+  --bg:#0a0e13;
+  --panel:rgba(13,18,25,.88);
+  --panel-solid:#0f151d;
+  --line:#223040;
+  --line-strong:#33465c;
+  --fg:#dde5ee;
+  --muted:#8494a7;
+  --accent:#ffb547;      /* cockpit amber */
+  --flow:#5cd6ff;        /* bypass / cold air */
+  --ok:#3ddc84; --warn:#ffcc33; --crit:#ff5a4d;
+  --display:'Saira Condensed','Arial Narrow',sans-serif;
+  --body:'Saira',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Share Tech Mono',ui-monospace,'Consolas',monospace;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:13px;overflow:hidden}
+#app{position:fixed;inset:0}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#labels{position:absolute;inset:0;pointer-events:none;z-index:1}
+.lbl{font-family:var(--display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg);
+  background:rgba(10,14,19,.78);border:1px solid var(--line-strong);border-left:3px solid var(--c,#fff);padding:2px 7px;border-radius:2px;white-space:nowrap}
+.compact .lbl small{display:none}
+.lbl small{display:block;font-family:var(--body);font-size:10px;letter-spacing:0;text-transform:none;color:var(--muted)}
+button{font:inherit;color:inherit}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+header#top{position:absolute;z-index:6;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));pointer-events:none}
+header#top>*{pointer-events:auto}
+.brand .eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.brand h1{margin:0;font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.02em;line-height:1}
+.brand h1 span{color:var(--accent)}
+.pill{font-family:var(--mono);font-size:13px;padding:5px 10px;border-radius:3px;border:1px solid var(--line-strong);background:var(--panel-solid);letter-spacing:.04em;white-space:nowrap}
+.pill.off{color:var(--muted)} .pill.start{color:var(--warn);border-color:#6b5a1d} .pill.run{color:var(--ok);border-color:#1f5a3a} .pill.ab{color:#ff9b45;border-color:#7a3d14;box-shadow:0 0 18px rgba(255,140,40,.25)}
+.spacer{flex:1}
+.seg{display:flex;border:1px solid var(--line-strong);border-radius:4px;overflow:hidden;background:var(--panel-solid)}
+.seg button{background:none;border:0;padding:5px 9px;cursor:pointer;color:var(--muted);font-size:12px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--fg)}
+.seg button.on{background:#1b2633;color:var(--fg);box-shadow:inset 0 -2px 0 var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,.thr-handle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{background:var(--panel-solid);border:1px solid var(--line-strong);border-radius:4px;padding:5px 10px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--accent)}
+
+aside.panel{position:absolute;z-index:5;top:64px;max-height:calc(100% - 132px);overflow:auto;padding:12px;display:none}
+aside.panel.open{display:block}
+#left{left:max(12px,env(safe-area-inset-left,0px));width:256px}
+#right{right:max(12px,env(safe-area-inset-right,0px));width:392px}
+h2{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.sec{display:flex;flex-direction:column;gap:8px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.row label{color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{background:var(--panel-solid);border:1px solid var(--line-strong);color:var(--fg);border-radius:4px;padding:4px 6px}
+.chk{display:flex;align-items:center;gap:6px;color:var(--fg);cursor:pointer}
+.chk input{accent-color:var(--accent)}
+.seg.wrap{flex-wrap:wrap}
+.seg.wrap button{flex:1 0 auto}
+.legend-bar{height:10px;border-radius:2px;border:1px solid var(--line)}
+.legend-ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:11px;color:var(--muted)}
+.keys kbd{font-family:var(--mono);color:var(--fg);background:var(--panel-solid);border:1px solid var(--line-strong);border-radius:3px;padding:0 4px;font-size:10px;text-align:center}
+
+/* cockpit */
+.cockpit{display:grid;grid-template-columns:86px 1fr;gap:10px}
+.thr{display:flex;flex-direction:column;align-items:center;gap:6px}
+.thr-track{position:relative;width:36px;height:282px;background:linear-gradient(#2b1408,#1a0f08 26%,#111821 28%,#0d1219);border:1px solid var(--line-strong);border-radius:4px;touch-action:none;cursor:ns-resize}
+.thr-mark{position:absolute;left:-2px;right:-2px;height:1px;background:var(--line-strong)}
+.thr-mark span{position:absolute;left:40px;top:-7px;font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}
+.thr-mark.major{background:#5d738c}
+.thr-mark.major span{color:var(--fg)}
+.thr-mark.ab span{color:#ff9b45}
+.thr-handle{position:absolute;left:-8px;width:50px;height:22px;margin-top:-11px;border-radius:4px;background:linear-gradient(#3c4a5a,#232d38);border:1px solid #7890a8;box-shadow:0 3px 8px rgba(0,0,0,.5);cursor:grab}
+.thr-handle::after{content:"";position:absolute;left:6px;right:6px;top:10px;height:2px;background:var(--accent)}
+.thr-val{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%}
+.quick .btn{padding:4px 0;font-size:10px;font-family:var(--mono)}
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gauge{display:flex;flex-direction:column;align-items:center;background:#06090d;border:1px solid var(--line);border-radius:6px;padding:4px 2px 2px}
+.gauge canvas{width:132px;height:132px;max-width:100%}
+.ff{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;background:#06090d;border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.ff .lab{font-family:var(--display);letter-spacing:.1em;color:var(--muted);font-size:12px}
+.ff .num{font-family:var(--mono);font-size:24px;color:#e9f1f8;letter-spacing:.06em}
+.ff .num small{font-size:11px;color:var(--muted)}
+.perf{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kv{background:var(--panel-solid);border:1px solid var(--line);border-radius:4px;padding:5px 7px;min-width:0}
+.kv .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kv .v{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kv .v small{font-size:10px;color:var(--muted)}
+.kv.big{grid-column:span 3;display:flex;align-items:baseline;justify-content:space-between}
+.kv.big .v{font-size:28px;color:var(--accent)}
+#curve{width:100%;height:120px;display:block}
+.stations{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+.stations th{font-weight:500;color:var(--muted);text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:2px 4px;border-bottom:1px solid var(--line)}
+.stations td{padding:2px 4px;border-bottom:1px solid rgba(34,48,64,.5);white-space:nowrap}
+.stations td.st{font-family:var(--mono);color:var(--accent)}
+.stations td.n{font-family:var(--mono);text-align:right}
+.bar{position:relative;height:6px;width:64px;background:#0b1118;border-radius:2px;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+
+#sysbar{position:absolute;z-index:5;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom,0px));display:flex;gap:4px;padding:5px;max-width:calc(100% - 24px);overflow-x:auto}
+#sysbar button{display:flex;align-items:center;gap:6px;background:none;border:1px solid transparent;border-radius:4px;padding:6px 10px;cursor:pointer;color:var(--muted);white-space:nowrap;font-size:12px}
+#sysbar button i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+#sysbar button:hover{color:var(--fg)}
+#sysbar button.on{color:var(--fg);border-color:var(--c);background:rgba(255,255,255,.04)}
+#sysinfo{position:absolute;z-index:5;bottom:62px;left:50%;transform:translateX(-50%);width:min(560px,calc(100% - 24px));padding:10px 12px}
+#sysinfo h3{margin:0 0 4px;font-family:var(--display);font-size:17px;letter-spacing:.04em}
+#sysinfo p{margin:0 0 6px;color:var(--muted);line-height:1.45}
+#sysinfo .vals{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:12px}
+#sysinfo .vals b{color:var(--accent);font-weight:400}
+#card{position:absolute;z-index:7;left:max(280px,calc(env(safe-area-inset-left,0px) + 280px));bottom:62px;width:320px;padding:12px;max-height:calc(100% - 200px);overflow:auto}
+#card .chip{display:inline-block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:1px 6px;border-radius:2px;border:1px solid var(--c);color:var(--c);margin-bottom:6px}
+#card h3{margin:0 0 6px;font-family:var(--display);font-size:20px;line-height:1.1;letter-spacing:.02em}
+#card p{margin:0 0 8px;line-height:1.5;color:#c3cdd8}
+#card dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0 0 8px;font-size:12px}
+#card dt{color:var(--muted)} #card dd{margin:0}
+#card .live{font-family:var(--mono);color:var(--accent);font-size:13px;margin-bottom:8px}
+#card .x{position:absolute;right:8px;top:6px;background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px}
+#tip{position:absolute;z-index:8;pointer-events:none;background:rgba(6,9,13,.92);border:1px solid var(--line-strong);padding:3px 8px;border-radius:3px;font-size:12px;white-space:nowrap;transform:translate(12px,12px)}
+#loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);pointer-events:none}
+.note{font-size:11px;color:var(--muted);line-height:1.45;margin:0}
+
+@media (max-width: 980px){
+  aside.panel{top:128px;max-height:calc(100% - 200px)}
+  #left{width:min(300px,calc(100% - 24px))}
+  #right{width:min(392px,calc(100% - 24px))}
+  #card{left:max(12px,env(safe-area-inset-left,0px));width:min(340px,calc(100% - 24px));z-index:6}
+  .views{order:5;width:100%}
+  .brand h1{font-size:21px}
+}
+@media (prefers-reduced-motion: reduce){ .pill.ab{box-shadow:none} }
+</style>
+
+<div id="app">
+  <canvas id="view" aria-label="3D model of the F110-GE-129 engine"></canvas>
+  <div id="labels"></div>
+  <div id="loading">Loading engine model…</div>
+
+  <header id="top">
+    <div class="brand">
+      <div class="eyebrow">F-16C Block 50/70 · Augmented turbofan</div>
+      <h1>F110<span>-GE-</span>129</h1>
+    </div>
+    <div id="statePill" class="pill run">RUNNING · IDLE</div>
+    <div class="spacer"></div>
+    <div class="seg views" role="group" aria-label="Camera views">
+      <button data-view="iso" class="on">3/4</button>
+      <button data-view="side">Side</button>
+      <button data-view="top">Top</button>
+      <button data-view="front">Front</button>
+      <button data-view="rear">Rear</button>
+      <button data-view="under">Under</button>
+    </div>
+    <button class="btn" id="tglLeft" aria-controls="left" aria-pressed="true">View</button>
+    <button class="btn" id="tglRight" aria-controls="right" aria-pressed="true">Cockpit</button>
+  </header>
+
+  <aside id="left" class="panel" aria-label="View controls">
+    <div class="sec">
+      <h2>Exploded view</h2>
+      <input type="range" id="explode" min="0" max="1" step="0.001" value="0" aria-label="Explode amount">
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="radial" checked> Lift casings</label>
+        <button class="btn" id="explodeBtn">Explode</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h2>Section</h2>
+      <div class="seg wrap" id="sectionSeg" role="group" aria-label="Section mode">
+        <button data-sec="none">None</button>
+        <button data-sec="quarter" class="on">Quarter</button>
+        <button data-sec="top">Half top</button>
+        <button data-sec="front">Half front</button>
+        <button data-sec="slice">Slice</button>
+      </div>
+      <div id="sliceRow" hidden>
+        <div class="row"><label for="slice">Slice station</label><span id="sliceVal" class="thr-val">x = 1.70 m</span></div>
+        <input type="range" id="slice" min="0" max="4.6" step="0.005" value="1.70">
+      </div>
+    </div>
+    <div class="sec">
+      <h2>Gas flow</h2>
+      <div class="row"><label for="colorBy">Color by</label>
+        <select id="colorBy">
+          <option value="T">Total temperature</option>
+          <option value="P">Total pressure</option>
+          <option value="V">Velocity</option>
+          <option value="S">Stream (core / bypass)</option>
+        </select>
+      </div>
+      <div class="legend-bar" id="legendBar"></div>
+      <div class="legend-ticks" id="legendTicks"></div>
+      <label class="chk"><input type="checkbox" id="showFlow" checked> Flow particles</label>
+      <label class="chk"><input type="checkbox" id="showFlame" checked> Flame, plume and shock diamonds</label>
+    </div>
+    <div class="sec">
+      <h2>Display</h2>
+      <div class="row"><label>Colors</label>
+        <div class="seg" id="paintSeg"><button data-paint="code" class="on">Module code</button><button data-paint="metal">Bare metal</button></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="showLabels" checked> Module labels</label>
+      <div class="row"><label for="anim">Animation speed</label><span class="thr-val" id="animVal">1.0×</span></div>
+      <input type="range" id="anim" min="0" max="2" step="0.05" value="1">
+      <button class="btn" id="soundBtn" aria-pressed="false">Engine sound: off</button>
+    </div>
+    <div class="sec">
+      <h2>Keys</h2>
+      <div class="keys">
+        <kbd>↑ ↓</kbd><span>Throttle</span>
+        <kbd>I M A</kbd><span>Idle · MIL · Max AB</span>
+        <kbd>X</kbd><span>Cutoff / start</span>
+        <kbd>E</kbd><span>Explode toggle</span>
+        <kbd>C</kbd><span>Cycle section</span>
+        <kbd>0–7</kbd><span>Isolate system</span>
+      </div>
+      <p class="note">Click any part for its data card. Drag to orbit, scroll to zoom, right-drag to pan.</p>
+    </div>
+  </aside>
+
+  <aside id="right" class="panel" aria-label="Cockpit and performance">
+    <div class="sec">
+      <h2>Throttle and engine instruments</h2>
+      <div class="cockpit">
+        <div class="thr">
+          <div class="thr-track" id="thrTrack">
+            <div class="thr-handle" id="thrHandle" tabindex="0" role="slider" aria-label="Throttle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="10"></div>
+          </div>
+          <div class="thr-val" id="thrVal">IDLE</div>
+          <div class="quick">
+            <button class="btn" data-thr="0">CUTOFF</button>
+            <button class="btn" data-thr="10">IDLE</button>
+            <button class="btn" data-thr="70">MIL</button>
+            <button class="btn" data-thr="100">MAX</button>
+          </div>
+        </div>
+        <div class="gauges">
+          <div class="gauge"><canvas id="gRPM" width="264" height="264" aria-label="RPM gauge"></canvas></div>
+          <div class="gauge"><canvas id="gFTIT" width="264" height="264" aria-label="FTIT gauge"></canvas></div>
+          <div class="gauge"><canvas id="gNOZ" width="264" height="264" aria-label="Nozzle position gauge"></canvas></div>
+          <div class="gauge"><canvas id="gOIL" width="264" height="264" aria-label="Oil pressure gauge"></canvas></div>
+          <div class="ff"><span class="lab">FUEL FLOW</span><span class="num" id="ffNum">1,600 <small>PPH</small></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <h2>Performance · sea level static, standard day</h2>
+      <div class="perf">
+        <div class="kv big"><span class="k">Net thrust</span><span class="v" id="pThrust" title="">0 <small>lbf</small></span></div>
+        <div class="kv"><div class="k">N1 fan</div><div class="v" id="pN1">0%</div></div>
+        <div class="kv"><div class="k">N2 core</div><div class="v" id="pN2">0%</div></div>
+        <div class="kv"><div class="k">Airflow</div><div class="v" id="pW">0 <small>lb/s</small></div></div>
+        <div class="kv"><div class="k">TSFC</div><div class="v" id="pSFC">0 <small>lb/lbf·h</small></div></div>
+        <div class="kv"><div class="k">OPR</div><div class="v" id="pOPR">0</div></div>
+        <div class="kv"><div class="k">Thrust / wt</div><div class="v" id="pTW">0</div></div>
+        <div class="kv"><div class="k">Main fuel</div><div class="v" id="pWf">0 <small>pph</small></div></div>
+        <div class="kv"><div class="k">AB fuel</div><div class="v" id="pWfab">0 <small>pph</small></div></div>
+        <div class="kv"><div class="k">Jet velocity</div><div class="v" id="pV9">0 <small>ft/s</small></div></div>
+      </div>
+      <canvas id="curve" width="760" height="240" aria-label="Thrust versus throttle"></canvas>
+    </div>
+    <div class="sec">
+      <h2>Gas path stations</h2>
+      <div style="overflow-x:auto">
+        <table class="stations" id="stTable">
+          <thead><tr><th>Stn</th><th>Location</th><th style="text-align:right">T °F</th><th></th><th style="text-align:right">P psia</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note">Hover a value for SI units. Cycle values are a calibrated physics model. They match published MIL and max-AB thrust, airflow, OPR and bypass ratio. Values between those points are representative.</p>
+    </div>
+  </aside>
+
+  <div id="sysbar" class="panel" role="group" aria-label="Isolate a system"></div>
+  <div id="sysinfo" class="panel" hidden></div>
+  <div id="card" class="panel" hidden></div>
+  <div id="tip" hidden></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const TAU = Math.PI * 2;
+
+/* ============================================================
+   1. CYCLE MODEL — Brayton station model, sea-level static
+   ============================================================ */
+const AMB = { T: 288.15, P: 101325 };
+const N2_MIL = 98;
+const LB_S = 2.20462, PPH = 7936.64, LBF = 4.44822, PSI = 6894.76;
+function cycle(n2, ab, lit) {
+  const n = Math.max(0, n2 / N2_MIL);
+  const W = 122.47 * Math.pow(n, 4);           // kg/s total airflow
+  const BPR = 0.76, Wc = W / (1 + BPR), Wb = W - Wc;
+  const FPR = 1 + 2.3 * Math.pow(n, 4.5);
+  const OPR = 1 + 29.7 * Math.pow(n, 5);
+  const HPR = OPR / FPR;
+  const T2 = AMB.T, P2 = AMB.P;
+  const T21 = T2 * (1 + (Math.pow(FPR, 0.2857) - 1) / 0.86), P21 = P2 * FPR;
+  const T3 = T21 * (1 + (Math.pow(HPR, 0.2857) - 1) / 0.85), P3 = P2 * OPR;
+  let T4 = T3;
+  if (lit) {
+    const ni = 0.714;
+    T4 = n >= ni ? 950 + 830 * Math.pow((n - ni) / (1 - ni), 1.3)
+                 : 950 + 300 * Math.min(1, (ni - n) / (ni - 0.2));
+    T4 = Math.min(T4, 1850);
+  }
+  const f = lit ? 1.15 * (T4 - T3) / (0.99 * 43000) : 0;
+  const Wf = f * Wc;
+  const T41 = 0.8 * T4 + 0.2 * T3;                       // cooling-air dilution
+  const T45 = Math.max(T41 - (T3 - T21) * 1.005 / 1.15 / (1 + f), T2);
+  const dTl = Wc > 1e-4 ? W * 1.005 * (T21 - T2) / (Wc * (1 + f) * 1.15) : 0;
+  const T5 = Math.max(T45 - dTl, T2);
+  const P4 = P3 * 0.95, P41 = P4 * 0.98;
+  const P45 = P41 * Math.pow(T45 / T41, 4.48);
+  const P5 = P45 * Math.pow(T5 / T45, 4.48);
+  const P16 = P21 * 0.96;
+  const Wg = Wc * (1 + f);
+  const T6 = W > 1e-4 ? (Wg * 1.15 * T5 + Wb * 1.005 * T21) / (Wg * 1.15 + Wb * 1.005) : T2;
+  const P6 = W > 1e-4 ? (P5 * Wg + P16 * Wb) / (Wg + Wb) * 0.98 : P2;
+  const P7 = P6 * (1 - 0.02 - 0.04 * ab);
+  let T7 = T6, Wfab = 0;
+  if (ab > 0 && lit) { T7 = T6 + (2050 - T6) * Math.pow(ab, 0.85); Wfab = (Wg + Wb) * 1.2 * (T7 - T6) / (0.9 * 43000); }
+  const m9 = Wg + Wb + Wfab;
+  const cp9 = 1004 + 0.12 * (T7 - 300), g9 = cp9 / (cp9 - 287);
+  const NPR = Math.max(1, P7 / AMB.P);
+  const ex = (g9 - 1) / g9;
+  const V9 = Math.sqrt(Math.max(0, 2 * cp9 * T7 * 0.97 * (1 - Math.pow(1 / NPR, ex))));
+  const crit = Math.pow((g9 + 1) / 2, g9 / (g9 - 1));
+  let A8;
+  if (NPR >= crit) {
+    const flux = P7 * Math.sqrt(g9 / (287 * T7)) * Math.pow(2 / (g9 + 1), (g9 + 1) / (2 * (g9 - 1)));
+    A8 = m9 / flux;
+  } else {
+    const Ts = T7 * Math.pow(1 / NPR, ex), rho = AMB.P / (287 * Ts);
+    A8 = m9 / (rho * Math.max(V9, 1));
+  }
+  const T9 = T7 * Math.pow(1 / NPR, ex) * 1.02;
+  const P8 = NPR >= crit ? P7 / crit : AMB.P;
+  return { n, W, Wc, Wb, FPR, OPR, HPR, f, Wf, Wfab, T2, P2, T21, P21, T3, P3, T4, P4, T41, P41, T45, P45, T5, P5, P16, T6, P6, T7, P7, P8, T9, m9, V9, A8, NPR, Fraw: m9 * V9 };
+}
+const K = {};
+K.mil = 17155 * LBF / cycle(N2_MIL, 0, true).Fraw;
+K.ab = 29500 * LBF / cycle(N2_MIL, 1, true).Fraw;
+const nozPhys = A8 => clamp((A8 - 0.22) / 0.40 * 100, 0, 100);
+function nozSched(n2, A8, lit) {
+  if (!lit || n2 < 40) return 100;
+  const p = nozPhys(A8), s = clamp((86 - n2) / 14, 0, 1);
+  return p + (100 - p) * s;                      // idle: nozzle scheduled wide open to dump idle thrust
+}
+function evalEngine(n2, ab, lit, noz) {
+  const c = cycle(n2, ab, lit);
+  let F = c.Fraw * (K.mil + (K.ab - K.mil) * ab);
+  const Asch = 0.22 + 0.40 * noz / 100;
+  if (Asch > c.A8 && c.A8 > 0) F *= Math.sqrt(c.A8 / Asch);
+  if (!lit) F *= 0.6;
+  c.F = F;
+  return c;
+}
+// throttle (0..100) schedule: OFF <5, IDLE 10, MIL 70, AB detent 72, MAX 100
+const thrToN2 = t => t < 5 ? 0 : t <= 10 ? 70 : t <= 70 ? 70 + 28 * Math.pow((t - 10) / 60, 0.85) : N2_MIL;
+const thrToAB = t => t < 72 ? 0 : 0.12 + 0.88 * (t - 72) / 28;
+const abZone = t => t < 72 ? 0 : Math.min(5, Math.floor((t - 72) / 28 * 5) + 1);
+
+/* engine dynamic state */
+const E = { thr: 10, phase: 'RUN', lit: true, n2: 70, n1: 100 * Math.pow(70 / N2_MIL, 1.6), ab: 0, abDelay: 0,
+  noz: 100, ftit: 0, oil: 0, c: null, wfDisp: 0, angLP: 0, angHP: 0 };
+E.c = evalEngine(E.n2, 0, true, 100); E.ftit = E.c.T45 - 273.15; E.oil = 50 * Math.pow(E.n2 / N2_MIL, 2.2);
+
+function stepEngine(dt) {
+  const t = E.thr;
+  if (E.phase === 'OFF') {
+    E.lit = false;
+    E.n2 = Math.max(0, E.n2 - E.n2 * dt / 7 - 0.15 * dt);
+    if (t >= 5) E.phase = E.n2 > 55 ? 'RUN' : 'START';
+    if (E.phase === 'RUN') E.lit = true;
+  } else if (E.phase === 'START') {
+    if (t < 5) { E.phase = 'OFF'; E.lit = false; }
+    else {
+      if (!E.lit) { E.n2 += 4.2 * dt; if (E.n2 >= 20) E.lit = true; }   // JFS motoring, light-off at 20%
+      else E.n2 += (E.n2 < 45 ? 3.2 : 5.5) * dt;                       // lit acceleration to idle
+      if (E.n2 >= 69.5) { E.phase = 'RUN'; }
+    }
+  } else {
+    if (t < 5) { E.phase = 'OFF'; E.lit = false; }
+    else {
+      const tgt = thrToN2(t);
+      const d = (tgt - E.n2) * 2.4;
+      E.n2 += clamp(d, -7, 9) * dt;
+    }
+  }
+  // N1 lags N2
+  const n1t = E.n2 > 0 ? 100 * Math.pow(E.n2 / N2_MIL, 1.6) : 0;
+  E.n1 += (n1t - E.n1) * Math.min(1, dt / 0.5);
+  // Augmentor sequencing
+  const abCmd = (E.phase === 'RUN' && E.lit && E.n2 > 95) ? thrToAB(t) : 0;
+  if (abCmd > 0) {
+    if (E.ab <= 0.001) { E.abDelay += dt; if (E.abDelay > 0.45) E.ab = 0.05; }
+    else E.ab += clamp(abCmd - E.ab, -1.6 * dt, 0.8 * dt);
+  } else { E.abDelay = 0; E.ab = Math.max(0, E.ab - 2 * dt); }
+  // nozzle (actuator rate-limited) and cycle
+  const pre = cycle(E.n2, E.ab, E.lit);
+  const nozCmd = nozSched(E.n2, pre.A8, E.lit);
+  E.noz += clamp(nozCmd - E.noz, -70 * dt, 70 * dt);
+  E.c = evalEngine(E.n2, E.ab, E.lit, E.noz);
+  // instrument lags
+  E.ftit += (E.c.T45 - 273.15 - E.ftit) * Math.min(1, dt / (E.lit ? 1.1 : 4));
+  E.oil += (50 * Math.pow(E.n2 / N2_MIL, 2.2) - E.oil) * Math.min(1, dt / 0.8);
+  const wf = (E.c.Wf + E.c.Wfab) * PPH;
+  E.wfDisp += (wf - E.wfDisp) * Math.min(1, dt / 0.4);
+}
+function steadyAt(t) {
+  const n2 = thrToN2(t), ab = thrToAB(t);
+  const pre = cycle(n2, ab, true);
+  return evalEngine(n2, ab, true, nozSched(n2, pre.A8, true));
+}
+
+/* ============================================================
+   2. RENDERER / SCENE
+   ============================================================ */
+const canvas = $('#view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e13);
+scene.fog = new THREE.Fog(0x0a0e13, 16, 34);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 120);
+camera.position.set(-1.7, 2.1, 7.6);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.target.set(0.25, -0.12, 0);
+controls.minDistance = 0.8; controls.maxDistance = 18;
+const labelRenderer = new CSS2DRenderer({ element: $('#labels') });
+
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x1a1208, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-3, 6, 5); scene.add(key);
+const rim = new THREE.DirectionalLight(0x88b4ff, 0.8); rim.position.set(5, 2, -6); scene.add(rim);
+
+// floor
+{
+  const g = new THREE.CircleGeometry(9, 64); g.rotateX(-Math.PI / 2);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const x = cv.getContext('2d'); const gr = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, '#1a2430'); gr.addColorStop(0.6, '#0f151c'); gr.addColorStop(1, '#0a0e13');
+  x.fillStyle = gr; x.fillRect(0, 0, 256, 256);
+  const floor = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }));
+  floor.position.y = -1.12; scene.add(floor);
+  const grid = new THREE.GridHelper(16, 32, 0x223040, 0x16202b); grid.position.y = -1.11;
+  grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+}
+
+/* ============================================================
+   3. FLOWPATH GEOMETRY TABLES (engine-local metres, x aft)
+   ============================================================ */
+function interp(tbl, x) {
+  if (x <= tbl[0][0]) return tbl[0][1];
+  for (let i = 1; i < tbl.length; i++) if (x <= tbl[i][0]) {
+    const [x0, y0] = tbl[i - 1], [x1, y1] = tbl[i];
+    return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+  }
+  return tbl[tbl.length - 1][1];
+}
+const HUB_FAN = [[-1, 0], [0, 0], [0.05, 0.075], [0.15, 0.135], [0.25, 0.165], [0.5, 0.2], [0.82, 0.22]];
+const TIP_FAN = [[-1, 0.66], [-0.3, 0.5], [0.12, 0.458], [0.3, 0.452], [0.5, 0.444], [0.72, 0.435], [0.82, 0.433]];
+const CORE_HUB = [[0.82, 0.22], [1.2, 0.245], [1.55, 0.27], [1.6, 0.25], [1.64, 0.235], [1.92, 0.24], [1.95, 0.27], [2.08, 0.27], [2.12, 0.255], [2.42, 0.24]];
+const CORE_TIP = [[0.82, 0.33], [1.2, 0.315], [1.55, 0.3], [1.6, 0.33], [1.64, 0.36], [1.92, 0.36], [1.95, 0.345], [2.08, 0.35], [2.12, 0.36], [2.42, 0.4]];
+const BYP_IN = [[0.82, 0.345], [1.2, 0.335], [1.5, 0.35], [1.62, 0.385], [2.0, 0.39], [2.12, 0.39], [2.42, 0.43]];
+const BYP_OUT = [[0.82, 0.433], [1.0, 0.455], [2.42, 0.465]];
+const LINER = [[2.42, 0.465], [2.65, 0.45], [3.86, 0.447]];
+const TAILCONE = [[2.42, 0.24], [2.6, 0.185], [2.75, 0.12], [2.92, 0]];
+const ENGINE_X = -2.3;
+
+/* nozzle state (updated per frame) */
+const NZ = { x0: 3.86, r0: 0.452, Lc: 0.36, Ld: 0.4, rT: 0.3, xT: 4.2, rE: 0.33, xE: 4.6 };
+function updateNozzleGeom() {
+  const A = 0.22 + 0.40 * E.noz / 100;
+  NZ.rT = Math.sqrt(A / Math.PI);
+  NZ.xT = NZ.x0 + Math.sqrt(Math.max(0.01, NZ.Lc * NZ.Lc - (NZ.r0 - NZ.rT) ** 2));
+  const AR = 1.18 - 0.16 * E.noz / 100 + 0.24 * E.ab;
+  NZ.rE = Math.min(0.53, NZ.rT * Math.sqrt(AR));
+  NZ.xE = NZ.xT + Math.sqrt(Math.max(0.01, NZ.Ld * NZ.Ld - (NZ.rE - NZ.rT) ** 2));
+}
+updateNozzleGeom();
+const nozzleR = x => x < NZ.xT ? lerp(NZ.r0, NZ.rT, (x - NZ.x0) / (NZ.xT - NZ.x0)) : lerp(NZ.rT, NZ.rE, (x - NZ.xT) / (NZ.xE - NZ.xT));
+
+/* ============================================================
+   4. MATERIALS, CLIPPING, PART REGISTRY
+   ============================================================ */
+const PL = {
+  top: new THREE.Plane(new THREE.Vector3(0, -1, 0), 0),
+  front: new THREE.Plane(new THREE.Vector3(0, 0, -1), 0),
+  slice: new THREE.Plane(new THREE.Vector3(1, 0, 0), 0),
+};
+const CLIP = { mode: 'quarter', planes: [PL.top, PL.front], inter: true };
+const clipMats = [];
+const allMats = [];
+const pickables = [];
+const partMeshes = [];
+const COLORS = {
+  inlet: 0x8c98ab, fan: 0x3fb06d, fanframe: 0x5c9e7c, hpc: 0x3d82dc, comb: 0xec7a2c, hpt: 0xd63c3c,
+  lpt: 0xc0347a, tframe: 0x9a5bd6, aug: 0xe0b23a, noz: 0xaab0ba, agb: 0x4f9a9a, shaft: 0xc9d2dc, ext: 0x7d8794,
+};
+const REAL = {
+  ti: 0xa9adb3, steel: 0x9aa0a6, nickel: 0x8f8a84, hot: 0x7a6e66, dark: 0x4b5058, gold: 0xb89a5a, blued: 0x6c6a78,
+};
+function mat(code, real, o = {}) {
+  const m = new THREE.MeshStandardMaterial({
+    color: code, metalness: o.metal ?? 0.65, roughness: o.rough ?? 0.4, side: o.side ?? THREE.DoubleSide,
+    transparent: !!o.transparent, opacity: o.opacity ?? 1, emissive: 0x000000,
+  });
+  m.userData = { code, real: real ?? REAL.steel, clip: o.clip !== false };
+  return m;
+}
+function track(m) { allMats.push(m); if (m.userData.clip) clipMats.push(m); return m; }
+function applySection() {
+  for (const m of clipMats) { m.clippingPlanes = CLIP.planes; m.clipIntersection = CLIP.inter; m.needsUpdate = true; }
+}
+function isClippedWorld(p) {
+  if (!CLIP.planes.length) return false;
+  const neg = CLIP.planes.map(pl => pl.distanceToPoint(p) < 0);
+  return CLIP.inter ? neg.every(Boolean) : neg.some(Boolean);
+}
+/** register a mesh as a selectable part */
+function reg(mesh, part, o = {}) {
+  if (mesh.material && mesh.material.isMeshStandardMaterial) {
+    const m = mesh.material.clone(); m.userData = { ...mesh.material.userData }; mesh.material = track(m);
+  }
+  mesh.userData.part = part;
+  mesh.userData.stage = o.stage;
+  mesh.userData.sys = o.sys || [];
+  mesh.userData.casing = !!o.casing;
+  mesh.userData.base = mesh.position.clone();
+  mesh.userData.mat0 = mesh.material;
+  pickables.push(mesh); partMeshes.push(mesh);
+  return mesh;
+}
+
+/* modules (exploded view groups) */
+const engine = new THREE.Group(); engine.position.x = ENGINE_X; scene.add(engine);
+const M = {};
+const LBLY = { inlet: 0.62, fan: 0.86, fanframe: 0.64, hpc: 0.9, comb: 0.66, hpt: 1.12, lpt: 0.88, tframe: 0.64, aug: 0.86, noz: 0.64 };
+function mod(key, name, sub, offset, labelX, color) {
+  const g = new THREE.Group(); g.userData = { key, offset: new THREE.Vector3(...offset) };
+  engine.add(g); M[key] = g;
+  if (name) {
+    const d = document.createElement('div'); d.className = 'lbl'; d.style.setProperty('--c', '#' + new THREE.Color(color).getHexString());
+    d.innerHTML = `${name}<small>${sub}</small>`;
+    const o = new CSS2DObject(d); o.position.set(labelX, LBLY[key] ?? 0.64, 0); g.add(o); g.userData.label = o;
+  }
+  return g;
+}
+mod('inlet', 'Front frame', 'Variable IGVs', [-1.25, 0, 0], 0.08, COLORS.inlet);
+mod('fan', 'Fan', '3-stage · LP spool', [-0.8, 0, 0], 0.45, COLORS.fan);
+mod('fanframe', 'Fan frame', 'Splitter · radial drive', [-0.32, 0, 0], 0.8, COLORS.fanframe);
+mod('hpc', 'HP compressor', '9-stage · HP spool', [0, 0, 0], 1.2, COLORS.hpc);
+mod('comb', 'Combustor', 'Annular · 20 nozzles', [0.38, 0, 0], 1.77, COLORS.comb);
+mod('hpt', 'HP turbine', '1-stage · drives HPC', [0.74, 0, 0], 2.02, COLORS.hpt);
+mod('lpt', 'LP turbine', '2-stage · drives fan', [1.1, 0, 0], 2.26, COLORS.lpt);
+mod('tframe', 'Turbine frame', 'Mixer · tail cone', [1.46, 0, 0], 2.55, COLORS.tframe);
+mod('aug', 'Augmentor', 'Spray rings · flameholders', [1.9, 0, 0], 3.2, COLORS.aug);
+mod('noz', 'Nozzle', 'Variable C-D · A8/A9', [2.5, 0, 0], 4.25, COLORS.noz);
+mod('agb', 'Accessory gearbox', 'Pumps · MFC · PMA', [0, -0.85, 0.35], 1.3, COLORS.agb);
+mod('shafts', null, null, [0.1, 0, -1.1], 0, 0);
+mod('ext', null, null, [0, 0, 0], 0, 0);
+M.agb.userData.label.position.y = -0.98;
+
+/* geometry helpers */
+function lathe(pts, segs = 96) {
+  const g = new THREE.LatheGeometry(pts.map(([x, r]) => new THREE.Vector2(Math.max(r, 0.0001), x)), segs);
+  g.rotateZ(-Math.PI / 2);
+  return g;
+}
+function solidBetween(inner, outer, x0, x1, n = 24, segs = 96) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n; pts.push([x, interp(inner, x)]); }
+  for (let i = n; i >= 0; i--) { const x = x0 + (x1 - x0) * i / n; pts.push([x, interp(outer, x)]); }
+  pts.push(pts[0]);
+  return lathe(pts, segs);
+}
+const off = (tbl, d) => tbl.map(([x, r]) => [x, r + d]);
+function P(x, r, deg) { const t = deg * Math.PI / 180; return new THREE.Vector3(x, r * Math.cos(t), r * Math.sin(t)); }
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const UP = new THREE.Vector3(0, 1, 0);
+function cylBetween(a, b, r, material, seg = 12, r2) {
+  const d = b.clone().sub(a), L = d.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r2 ?? r, r, L, seg), material);
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(UP, d.normalize());
+  return m;
+}
+function ring(x, R, tube, material, seg = 96) {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 8, seg), material);
+  m.rotation.y = Math.PI / 2; m.position.x = x; return m;
+}
+function bladeGeo({ rHub, span, chord, stagger, twist = 0, camber = 0.12, thick = 0.07, taper = 0.2, ns = 6, nc = 8 }) {
+  const pos = [], idx = [];
+  const per = (ns + 1) * (nc + 1);
+  for (const side of [1, -1]) for (let i = 0; i <= ns; i++) for (let j = 0; j <= nc; j++) {
+    const s = i / ns, c = j / nc;
+    const y = rHub + s * span;
+    const phi = stagger + twist * (s - 0.5);
+    const ch = chord * (1 - taper * s);
+    const t = (c - 0.5) * ch;
+    const camb = camber * ch * (1 - (2 * c - 1) ** 2) * 0.5;
+    const th = side * thick * ch * 2.6 * (Math.sqrt(c) - c);
+    const nn = camb + th;
+    pos.push(t * Math.cos(phi) - nn * Math.sin(phi), y, t * Math.sin(phi) + nn * Math.cos(phi));
+  }
+  for (let k = 0; k < 2; k++) for (let i = 0; i < ns; i++) for (let j = 0; j < nc; j++) {
+    const a = k * per + i * (nc + 1) + j, b = a + 1, c = a + nc + 1, d = c + 1;
+    if (k === 0) idx.push(a, c, b, b, c, d); else idx.push(a, b, c, b, d, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+const _m4 = new THREE.Matrix4();
+function bladeRow(o) {
+  const g = bladeGeo(o);
+  const im = new THREE.InstancedMesh(g, o.material, o.n);
+  for (let i = 0; i < o.n; i++) { _m4.makeRotationX(i / o.n * TAU); im.setMatrixAt(i, _m4); }
+  im.instanceMatrix.needsUpdate = true;
+  im.computeBoundingSphere();
+  return im;
+}
+const rotors = []; // {obj, spool:'LP'|'HP'}
+
+/* ============================================================
+   5. BUILD THE ENGINE
+   ============================================================ */
+// ---- inlet / front frame
+{
+  const g = M.inlet;
+  const frame = new THREE.Mesh(solidBetween(off(TIP_FAN, 0.005), off(TIP_FAN, 0.06), -0.02, 0.2, 8), mat(COLORS.inlet, REAL.ti));
+  reg(frame, 'frontFrame', { casing: true }); g.add(frame);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.49, 0.03, 12, 96), mat(COLORS.inlet, REAL.ti));
+  lip.rotation.y = Math.PI / 2; lip.position.x = -0.02; reg(lip, 'frontFrame', { casing: true }); g.add(lip);
+  const igvMat = mat(COLORS.inlet, REAL.ti);
+  const hub = interp(HUB_FAN, 0.13), tip = interp(TIP_FAN, 0.13);
+  const igv = bladeRow({ rHub: hub, span: tip - hub, chord: 0.085, stagger: 0.05, twist: 0, camber: 0.06, thick: 0.12, taper: 0, n: 20, material: igvMat });
+  igv.position.x = 0.13; reg(igv, 'igv', { sys: ['act'] }); g.add(igv);
+  const hubRing = new THREE.Mesh(solidBetween([[0, 0.11], [0.2, 0.15]], [[0, 0.135], [0.2, 0.165]], 0.08, 0.18, 4), mat(COLORS.inlet, REAL.ti));
+  reg(hubRing, 'frontFrame'); g.add(hubRing);
+}
+// ---- fan (LP)
+const fanMat = () => mat(COLORS.fan, REAL.ti, { metal: 0.75, rough: 0.32 });
+{
+  const g = M.fan;
+  const rows = [
+    { x: 0.26, n: 30, chord: 0.12, rot: true, st: 1 }, { x: 0.36, n: 46, chord: 0.07, rot: false, st: 1 },
+    { x: 0.46, n: 44, chord: 0.1, rot: true, st: 2 }, { x: 0.555, n: 58, chord: 0.06, rot: false, st: 2 },
+    { x: 0.645, n: 52, chord: 0.085, rot: true, st: 3 }, { x: 0.74, n: 64, chord: 0.055, rot: false, st: 3 },
+  ];
+  for (const r of rows) {
+    const hub = interp(HUB_FAN, r.x), tip = interp(TIP_FAN, r.x) - 0.004;
+    const im = bladeRow({ rHub: hub, span: tip - hub, chord: r.chord, stagger: r.rot ? 0.85 : -0.45, twist: r.rot ? 0.55 : 0.1,
+      camber: r.rot ? 0.12 : 0.18, thick: r.rot ? 0.06 : 0.08, taper: r.rot ? 0.15 : 0, n: r.n, material: fanMat() });
+    if (r.rot) {
+      const grp = new THREE.Group(); grp.position.x = r.x; im.position.x = 0; grp.add(im);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(hub - 0.004, hub - 0.004, r.chord * 0.7, 48), mat(COLORS.fan, REAL.ti));
+      disc.rotation.z = Math.PI / 2; grp.add(disc);
+      reg(im, 'fanRotor', { stage: r.st, sys: ['spools'] }); reg(disc, 'fanDisc', { stage: r.st, sys: ['spools'] });
+      g.add(grp); rotors.push({ obj: grp, spool: 'LP' });
+    } else {
+      im.position.x = r.x; reg(im, r.st === 3 ? 'fanOGV' : 'fanStator', { stage: r.st }); g.add(im);
+    }
+  }
+  // spinner rotates with stage 1
+  const sp = new THREE.Mesh(lathe([[0, 0], [0.04, 0.06], [0.1, 0.11], [0.2, 0.155], [0.26, 0.165], [0.26, 0]]), mat(0x2b3440, REAL.dark, { metal: 0.4, rough: 0.35 }));
+  const sg = new THREE.Group(); sg.add(sp); g.add(sg); reg(sp, 'spinner', { sys: ['spools'] }); rotors.push({ obj: sg, spool: 'LP' });
+  // fan drum (hub between rotors)
+  const drum = new THREE.Mesh(solidBetween(off(HUB_FAN, -0.03), off(HUB_FAN, -0.004), 0.26, 0.8, 10), fanMat());
+  const dg = new THREE.Group(); dg.add(drum); g.add(dg); reg(drum, 'fanDisc', { stage: 0, sys: ['spools'] }); rotors.push({ obj: dg, spool: 'LP' });
+  // fan case
+  const fcase = new THREE.Mesh(solidBetween(off(TIP_FAN, 0.004), off(TIP_FAN, 0.045), 0.2, 0.8, 12), mat(0x2f7a51, REAL.ti));
+  reg(fcase, 'fanCase', { casing: true }); g.add(fcase);
+  const flange = ring(0.8, 0.485, 0.012, mat(0x2f7a51, REAL.ti)); reg(flange, 'fanCase', { casing: true }); g.add(flange);
+}
+// ---- fan frame / splitter
+{
+  const g = M.fanframe;
+  const split = new THREE.Mesh(solidBetween([[0.78, 0.315], [0.95, 0.312]], [[0.78, 0.33], [0.84, 0.35], [0.95, 0.34]], 0.78, 0.95, 6), mat(COLORS.fanframe, REAL.ti));
+  reg(split, 'splitter', { casing: true }); g.add(split);
+  const outer = new THREE.Mesh(solidBetween(off(BYP_OUT, 0.0), off(BYP_OUT, 0.035), 0.8, 0.98, 6), mat(COLORS.fanframe, REAL.steel));
+  reg(outer, 'fanFrame', { casing: true }); g.add(outer);
+  const strutMat = mat(COLORS.fanframe, REAL.steel);
+  const sg = new THREE.BoxGeometry(0.1, 0.24, 0.025); sg.translate(0, 0.345 + 0.12, 0);
+  const struts = new THREE.InstancedMesh(sg, strutMat, 8);
+  for (let i = 0; i < 8; i++) { _m4.makeRotationX(i / 8 * TAU + Math.PI / 8); struts.setMatrixAt(i, _m4); }
+  struts.position.x = 0.88; reg(struts, 'fanFrame'); g.add(struts);
+  const hubSg = new THREE.BoxGeometry(0.06, 0.1, 0.02); hubSg.translate(0, 0.27, 0);
+  const hubStruts = new THREE.InstancedMesh(hubSg, strutMat, 8);
+  for (let i = 0; i < 8; i++) { _m4.makeRotationX(i / 8 * TAU + Math.PI / 8); hubStruts.setMatrixAt(i, _m4); }
+  hubStruts.position.x = 0.8; reg(hubStruts, 'fanFrame'); g.add(hubStruts);
+}
+// ---- HPC (9 stages)
+const hpcRot = () => mat(COLORS.hpc, REAL.ti, { metal: 0.75, rough: 0.32 });
+{
+  const g = M.hpc;
+  const vigv = bladeRow({ rHub: interp(CORE_HUB, 0.86), span: interp(CORE_TIP, 0.86) - interp(CORE_HUB, 0.86), chord: 0.04, stagger: -0.2, camber: 0.1, thick: 0.1, taper: 0, n: 40, material: mat(0x2a5fa8, REAL.ti) });
+  vigv.position.x = 0.86; reg(vigv, 'hpcIGV', { sys: ['act'] }); g.add(vigv);
+  for (let i = 0; i < 9; i++) {
+    const xr = 0.905 + i * 0.07, xs = xr + 0.035;
+    const ch = 0.042 - i * 0.0018;
+    const hub = interp(CORE_HUB, xr), tip = interp(CORE_TIP, xr) - 0.002;
+    const im = bladeRow({ rHub: hub, span: tip - hub, chord: ch, stagger: 0.95, twist: 0.35, camber: 0.1, thick: 0.07, taper: 0.1, n: 36 + i * 6,
+      material: i < 5 ? hpcRot() : mat(0x2f6cc0, REAL.nickel, { metal: 0.75, rough: 0.35 }) });
+    const grp = new THREE.Group(); grp.position.x = xr; grp.add(im);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(hub - 0.003, hub - 0.003, ch * 0.8, 40), mat(0x2a5fa8, REAL.nickel));
+    disc.rotation.z = Math.PI / 2; grp.add(disc);
+    reg(im, 'hpcRotor', { stage: i + 1, sys: ['spools'] }); reg(disc, 'hpcDisc', { stage: i + 1, sys: ['spools'] });
+    g.add(grp); rotors.push({ obj: grp, spool: 'HP' });
+    const hs = interp(CORE_HUB, xs), ts = interp(CORE_TIP, xs);
+    const sv = bladeRow({ rHub: hs, span: ts - hs, chord: ch * 0.85, stagger: -0.5, camber: 0.16, thick: 0.08, taper: 0, n: Math.round((36 + i * 6) * 1.35),
+      material: mat(i < 3 ? 0x2a5fa8 : 0x3570c4, REAL.steel) });
+    sv.position.x = xs; reg(sv, i < 3 ? 'hpcVSV' : 'hpcStator', { stage: i + 1, sys: i < 3 ? ['act'] : [] }); g.add(sv);
+  }
+  const hcase = new THREE.Mesh(solidBetween(CORE_TIP, BYP_IN, 0.84, 1.56, 24), mat(0x2a5a9a, REAL.steel));
+  reg(hcase, 'hpcCase', { casing: true }); g.add(hcase);
+  const bo = new THREE.Mesh(solidBetween(BYP_OUT, off(BYP_OUT, 0.03), 0.98, 1.58, 10), mat(0x5d6f84, REAL.ti));
+  reg(bo, 'bypassDuct', { casing: true }); g.add(bo);
+}
+// ---- combustor
+const flameObjs = [];
+{
+  const g = M.comb;
+  const cc = new THREE.Mesh(solidBetween(off(CORE_TIP, 0.012), BYP_IN, 1.56, 1.95, 14), mat(0xb7642a, REAL.steel));
+  reg(cc, 'combCase', { casing: true }); g.add(cc);
+  const outerL = new THREE.Mesh(lathe([[1.62, 0.352], [1.68, 0.372], [1.9, 0.365], [1.95, 0.348], [1.95, 0.342], [1.9, 0.358], [1.68, 0.364], [1.62, 0.344], [1.62, 0.352]]), mat(COLORS.comb, REAL.hot, { rough: 0.5 }));
+  reg(outerL, 'combLiner', { casing: true }); g.add(outerL);
+  const innerL = new THREE.Mesh(lathe([[1.62, 0.25], [1.68, 0.236], [1.9, 0.244], [1.95, 0.268], [1.95, 0.274], [1.9, 0.25], [1.68, 0.242], [1.62, 0.256], [1.62, 0.25]]), mat(COLORS.comb, REAL.hot, { rough: 0.5 }));
+  reg(innerL, 'combLiner'); g.add(innerL);
+  const dome = new THREE.Mesh(lathe([[1.6, 0.25], [1.6, 0.352], [1.62, 0.352], [1.62, 0.25], [1.6, 0.25]]), mat(0xd06a2a, REAL.hot));
+  reg(dome, 'combDome'); g.add(dome);
+  const ob = new THREE.Mesh(solidBetween(BYP_OUT, off(BYP_OUT, 0.03), 1.58, 1.98, 8), mat(0x5d6f84, REAL.ti));
+  reg(ob, 'bypassDuct', { casing: true }); g.add(ob);
+  // diffuser / swirlers
+  const swMat = mat(0xffa24d, REAL.steel);
+  const sw = new THREE.InstancedMesh(new THREE.TorusGeometry(0.018, 0.006, 6, 16), swMat, 20);
+  const q = new THREE.Object3D();
+  for (let i = 0; i < 20; i++) { const a = i / 20 * TAU; q.position.set(0, 0.302 * Math.cos(a), 0.302 * Math.sin(a)); q.rotation.set(0, Math.PI / 2, 0); q.updateMatrix(); sw.setMatrixAt(i, q.matrix); }
+  sw.position.x = 1.605; reg(sw, 'swirler', { sys: ['fuel'] }); g.add(sw);
+}
+// ---- HPT
+const hotBladeMats = [];
+{
+  const g = M.hpt;
+  const ngv = bladeRow({ rHub: 0.27, span: 0.073, chord: 0.045, stagger: -0.75, camber: 0.25, thick: 0.18, taper: 0, n: 40, material: mat(COLORS.hpt, REAL.hot) });
+  ngv.position.x = 1.968; reg(ngv, 'hptNGV'); g.add(ngv); hotBladeMats.push(ngv.material);
+  const bm = mat(0xe04848, REAL.gold, { metal: 0.6, rough: 0.35 });
+  const bl = bladeRow({ rHub: 0.272, span: 0.074, chord: 0.036, stagger: 0.9, twist: 0.2, camber: 0.3, thick: 0.16, taper: 0.05, n: 72, material: bm });
+  const grp = new THREE.Group(); grp.position.x = 2.03; grp.add(bl);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.268, 0.268, 0.032, 48), mat(0xb03030, REAL.nickel));
+  disc.rotation.z = Math.PI / 2; grp.add(disc);
+  const disc2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 40), mat(0xb03030, REAL.nickel)); disc2.rotation.z = Math.PI / 2; grp.add(disc2);
+  reg(bl, 'hptRotor', { sys: ['spools'] }); reg(disc, 'hptDisc', { sys: ['spools'] }); reg(disc2, 'hptDisc', { sys: ['spools'] });
+  hotBladeMats.push(bl.material);
+  g.add(grp); rotors.push({ obj: grp, spool: 'HP' });
+  const c = new THREE.Mesh(solidBetween(off(CORE_TIP, 0.004), BYP_IN, 1.95, 2.1, 6), mat(0xa83232, REAL.steel));
+  reg(c, 'turbCase', { casing: true }); g.add(c);
+  const ob = new THREE.Mesh(solidBetween(BYP_OUT, off(BYP_OUT, 0.03), 1.98, 2.1, 4), mat(0x5d6f84, REAL.ti));
+  reg(ob, 'bypassDuct', { casing: true }); g.add(ob);
+}
+// ---- LPT
+{
+  const g = M.lpt;
+  const defs = [{ x: 2.13, r: false, n: 48, ch: 0.04 }, { x: 2.19, r: true, n: 90, ch: 0.04, st: 1 }, { x: 2.26, r: false, n: 60, ch: 0.04 }, { x: 2.33, r: true, n: 80, ch: 0.042, st: 2 }];
+  for (const d of defs) {
+    const hub = interp(CORE_HUB, d.x), tip = interp(CORE_TIP, d.x) - 0.002;
+    const im = bladeRow({ rHub: hub, span: tip - hub, chord: d.ch, stagger: d.r ? 0.85 : -0.7, twist: d.r ? 0.3 : 0, camber: 0.28, thick: 0.14, taper: d.r ? 0.1 : 0, n: d.n,
+      material: d.r ? mat(0xd04585, REAL.nickel, { metal: 0.65, rough: 0.35 }) : mat(COLORS.lpt, REAL.hot) });
+    if (d.r) {
+      const grp = new THREE.Group(); grp.position.x = d.x; grp.add(im);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(hub - 0.003, hub - 0.003, 0.03, 40), mat(0x9a2a62, REAL.nickel)); disc.rotation.z = Math.PI / 2; grp.add(disc);
+      reg(im, 'lptRotor', { stage: d.st, sys: ['spools'] }); reg(disc, 'lptDisc', { stage: d.st, sys: ['spools'] });
+      hotBladeMats.push(im.material);
+      g.add(grp); rotors.push({ obj: grp, spool: 'LP' });
+    } else { im.position.x = d.x; reg(im, 'lptNGV', { stage: d.x < 2.2 ? 1 : 2 }); g.add(im); hotBladeMats.push(im.material); }
+  }
+  const c = new THREE.Mesh(solidBetween(off(CORE_TIP, 0.004), BYP_IN, 2.1, 2.42, 10), mat(0x9c2c66, REAL.steel));
+  reg(c, 'turbCase', { casing: true }); g.add(c);
+  const ob = new THREE.Mesh(solidBetween(BYP_OUT, off(BYP_OUT, 0.03), 2.1, 2.42, 6), mat(0x5d6f84, REAL.ti));
+  reg(ob, 'bypassDuct', { casing: true }); g.add(ob);
+}
+// ---- turbine rear frame, mixer, tail cone
+{
+  const g = M.tframe;
+  const mixer = new THREE.Mesh(lathe([[2.42, 0.425], [2.6, 0.398], [2.6, 0.404], [2.42, 0.435], [2.42, 0.425]]), mat(COLORS.tframe, REAL.nickel));
+  reg(mixer, 'mixer', { casing: true }); g.add(mixer);
+  const tc = new THREE.Mesh(lathe([[2.42, 0], [2.42, 0.24], [2.6, 0.185], [2.75, 0.12], [2.92, 0.0]]), mat(0x7b49b0, REAL.hot));
+  reg(tc, 'tailcone'); g.add(tc);
+  const sg = new THREE.BoxGeometry(0.12, 0.2, 0.02); sg.translate(0, 0.33, 0);
+  const st = new THREE.InstancedMesh(sg, mat(COLORS.tframe, REAL.nickel), 14);
+  for (let i = 0; i < 14; i++) { _m4.makeRotationX(i / 14 * TAU); st.setMatrixAt(i, _m4); }
+  st.position.x = 2.48; reg(st, 'tframe'); g.add(st);
+  const oc = new THREE.Mesh(solidBetween(off(LINER, 0.0), off(LINER, 0.035), 2.42, 2.65, 6), mat(0x7b49b0, REAL.ti));
+  reg(oc, 'tframe', { casing: true }); g.add(oc);
+}
+// ---- augmentor
+let augLinerMat;
+const zoneObjs = [[], [], [], [], []];
+{
+  const g = M.aug;
+  const casing = new THREE.Mesh(solidBetween([[2.65, 0.48], [3.86, 0.478]], [[2.65, 0.5], [3.86, 0.498]], 2.65, 3.86, 8), mat(0xb08a2c, REAL.ti));
+  reg(casing, 'augCase', { casing: true }); g.add(casing);
+  const liner = new THREE.Mesh(lathe([[2.65, 0.452], [3.86, 0.448], [3.86, 0.452], [2.65, 0.456], [2.65, 0.452]], 128), mat(COLORS.aug, REAL.gold, { metal: 0.55, rough: 0.45 }));
+  reg(liner, 'augLiner', { casing: true }); g.add(liner); augLinerMat = liner.material;
+  const fhMat = mat(0xf0c14a, REAL.hot);
+  for (const R of [0.19, 0.31, 0.41]) { const r = ring(2.88, R, 0.011, fhMat); reg(r, 'flameholder'); g.add(r); }
+  const gg = new THREE.BoxGeometry(0.03, 0.31, 0.012); gg.translate(0, 0.27, 0);
+  const gut = new THREE.InstancedMesh(gg, fhMat, 12);
+  for (let i = 0; i < 12; i++) { _m4.makeRotationX(i / 12 * TAU); gut.setMatrixAt(i, _m4); }
+  gut.position.x = 2.88; reg(gut, 'flameholder'); g.add(gut);
+}
+// ---- nozzle (instanced flaps, updated per frame)
+const NFLAP = 16;
+const flapGeo = new THREE.BoxGeometry(1, 1, 1); flapGeo.translate(0.5, 0, 0);
+let convFlaps, divFlaps, extFlaps, nozMats = [];
+const nozActs = [];
+{
+  const g = M.noz;
+  convFlaps = new THREE.InstancedMesh(flapGeo, mat(0x9aa2ad, REAL.nickel, { metal: 0.7, rough: 0.45 }), NFLAP);
+  divFlaps = new THREE.InstancedMesh(flapGeo, mat(0x8a929c, REAL.nickel, { metal: 0.7, rough: 0.5 }), NFLAP);
+  extFlaps = new THREE.InstancedMesh(flapGeo, mat(0xc5cad2, REAL.ti, { metal: 0.6, rough: 0.4 }), NFLAP * 2);
+  for (const f of [convFlaps, divFlaps, extFlaps]) f.frustumCulled = false;
+  reg(convFlaps, 'nozConv', { sys: ['act'] }); reg(divFlaps, 'nozDiv', { sys: ['act'] }); reg(extFlaps, 'nozExt', { casing: false });
+  g.add(convFlaps, divFlaps, extFlaps);
+  nozMats = [convFlaps.material, divFlaps.material];
+  const shroud = new THREE.Mesh(solidBetween([[3.74, 0.48], [3.9, 0.48]], [[3.74, 0.505], [3.9, 0.51]], 3.74, 3.9, 2), mat(0xaab0ba, REAL.ti));
+  reg(shroud, 'nozzleShroud', { casing: true }); g.add(shroud);
+  // 4 hydraulic actuators (fuel-draulic in practice; shown generically)
+  const am = mat(0x37c0b5, REAL.steel), rm = mat(0xdfe6ee, REAL.steel, { metal: 0.9, rough: 0.15 });
+  for (const ang of [45, 135, 225, 315]) {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1, 14), am);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1, 10), rm);
+    reg(body, 'nozAct', { sys: ['act'] }); reg(rod, 'nozAct', { sys: ['act'] });
+    g.add(body, rod); nozActs.push({ ang, body, rod });
+  }
+}
+const _dir = new THREE.Vector3(), _tan = new THREE.Vector3(), _nrm = new THREE.Vector3(), _mid = new THREE.Vector3(), _sc = new THREE.Vector3();
+function placeFlap(im, i, n, x0, r0, x1, r1, thick, wScale, angOff = 0) {
+  const a = (i / n) * TAU + angOff, ca = Math.cos(a), sa = Math.sin(a);
+  _dir.set(x1 - x0, (r1 - r0) * ca, (r1 - r0) * sa); const L = _dir.length(); _dir.normalize();
+  _tan.set(0, -sa, ca);
+  _nrm.crossVectors(_dir, _tan).normalize();
+  _m4.makeBasis(_dir, _tan, _nrm);
+  const rm = (r0 + r1) / 2;
+  _m4.scale(_sc.set(L, TAU * rm / n * wScale, thick));
+  _m4.setPosition(x0, r0 * ca, r0 * sa);
+  im.setMatrixAt(i, _m4);
+}
+function updateNozzleMeshes() {
+  for (let i = 0; i < NFLAP; i++) {
+    placeFlap(convFlaps, i, NFLAP, NZ.x0, NZ.r0, NZ.xT, NZ.rT, 0.012, 1.12);
+    placeFlap(divFlaps, i, NFLAP, NZ.xT, NZ.rT, NZ.xE, NZ.rE, 0.01, 1.12);
+  }
+  for (let i = 0; i < NFLAP * 2; i++) placeFlap(extFlaps, i, NFLAP * 2, 3.86, 0.5, NZ.xE + 0.005, NZ.rE + 0.03, 0.008, 1.1);
+  convFlaps.instanceMatrix.needsUpdate = divFlaps.instanceMatrix.needsUpdate = extFlaps.instanceMatrix.needsUpdate = true;
+  for (const a of nozActs) {
+    const p0 = P(3.42, 0.535, a.ang);
+    const p1 = P(NZ.x0 + (NZ.xT - NZ.x0) * 0.75, lerp(NZ.r0, NZ.rT, 0.75) + 0.05, a.ang);
+    const d = p1.clone().sub(p0), L = d.length(); d.normalize();
+    const bodyL = 0.26;
+    a.body.position.copy(p0).addScaledVector(d, bodyL / 2); a.body.scale.set(1, bodyL, 1); a.body.quaternion.setFromUnitVectors(UP, d);
+    const rl = Math.max(0.02, L - bodyL);
+    a.rod.position.copy(p0).addScaledVector(d, bodyL + rl / 2); a.rod.scale.set(1, rl, 1); a.rod.quaternion.setFromUnitVectors(UP, d);
+  }
+}
+updateNozzleMeshes();
+
+// ---- shafts & bearings
+{
+  const g = M.shafts;
+  const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.2, 24), mat(0x9fe0b8, REAL.steel, { metal: 0.85, rough: 0.25 }));
+  lp.rotation.z = Math.PI / 2; lp.position.x = 1.32;
+  const lg = new THREE.Group(); lg.add(lp); g.add(lg); reg(lp, 'lpShaft', { sys: ['spools'] }); rotors.push({ obj: lg, spool: 'LP' });
+  const hp = new THREE.Mesh(lathe([[0.84, 0.08], [0.84, 0.1], [2.06, 0.1], [2.06, 0.08], [0.84, 0.08]], 48), mat(0x8fb8ec, REAL.steel, { metal: 0.85, rough: 0.25 }));
+  const hg = new THREE.Group(); hg.add(hp); g.add(hg); reg(hp, 'hpShaft', { sys: ['spools'] }); rotors.push({ obj: hg, spool: 'HP' });
+  // cone/drum connecting HPC discs
+  const drum = new THREE.Mesh(solidBetween(off(CORE_HUB, -0.03), off(CORE_HUB, -0.006), 0.9, 1.52, 10, 64), mat(0x2a5fa8, REAL.ti));
+  const dg = new THREE.Group(); dg.add(drum); M.hpc.add(dg); reg(drum, 'hpcDisc', { stage: 0, sys: ['spools'] }); rotors.push({ obj: dg, spool: 'HP' });
+  // bevel gear on HP shaft (drives radial shaft)
+  const bev = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.04, 24), mat(0x4f9a9a, REAL.steel));
+  bev.rotation.z = Math.PI / 2; bev.position.x = 0.86;
+  const bg = new THREE.Group(); bg.add(bev); g.add(bg); reg(bev, 'bevelGear', { sys: ['drive', 'spools'] }); rotors.push({ obj: bg, spool: 'HP' });
+  const bmat = mat(0xffb547, REAL.steel, { metal: 0.8 });
+  for (const [x, r, n] of [[0.3, 0.06, 1], [0.78, 0.06, 2], [0.9, 0.115, 3], [2.08, 0.115, 4], [2.45, 0.06, 5]]) {
+    const b = ring(x, r, 0.014, bmat, 32); reg(b, 'bearing', { stage: n, sys: ['oil'] }); g.add(b);
+  }
+}
+
+/* ============================================================
+   6. SYSTEMS (externals, flowing tubes)
+   ============================================================ */
+const TIME = { value: 0 };
+const GRP = {
+  fuel:   { sys: 'fuel', color: 0xffd23f, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } } },
+  fuelab: { sys: 'fuel', color: 0xff8a1f, u: { speed: { value: 0 }, flow: { value: 0 }, alpha: { value: 1 } } },
+  oil:    { sys: 'oil', color: 0xc9781a, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } } },
+  scav:   { sys: 'oil', color: 0x8a5a24, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } } },
+  bleed:  { sys: 'bleed', color: 0xb07cff, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } } },
+  cool:   { sys: 'bleed', color: 0xd7b8ff, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } } },
+  ctrl:   { sys: 'ctrl', color: 0x7cf0a8, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } }, mode: 1 },
+  hyd:    { sys: 'act', color: 0x37c0b5, u: { speed: { value: 1 }, flow: { value: 1 }, alpha: { value: 1 } } },
+};
+const TUBE_VS = `#include <clipping_planes_pars_vertex>
+varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main(){ vUv=uv; vN=normalize(normalMatrix*normal); vec4 mvPosition=modelViewMatrix*vec4(position,1.0); vV=-mvPosition.xyz; gl_Position=projectionMatrix*mvPosition;
+#include <clipping_planes_vertex>
+}`;
+const TUBE_FS = `#include <clipping_planes_pars_fragment>
+uniform vec3 uColor; uniform float uTime, uSpeed, uFlow, uAlpha, uLen, uMode; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main(){
+  #include <clipping_planes_fragment>
+  vec3 n=normalize(vN); float lam=0.35+0.65*max(dot(n,normalize(vec3(0.3,0.8,0.5))),0.0);
+  float rim=pow(1.0-abs(dot(n,normalize(vV))),2.0);
+  float s=fract(vUv.x*uLen*7.0-uTime*uSpeed);
+  float stripe=smoothstep(0.0,0.12,s)*smoothstep(0.55,0.3,s);
+  if(uMode>0.5){ float p=fract(vUv.x*uLen*1.6-uTime*uSpeed*0.35); stripe=smoothstep(0.86,0.97,p)*2.2; }
+  vec3 c=uColor*(0.22+0.38*lam)+uColor*stripe*0.9*uFlow+rim*0.3*uColor;
+  gl_FragColor=vec4(c,uAlpha);
+}`;
+const tubes = [];
+function tube(grp, pts, r, part, parent = M.ext) {
+  const G = GRP[grp];
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+  const len = curve.getLength();
+  const geo = new THREE.TubeGeometry(curve, Math.max(10, Math.ceil(len * 50)), r, 8, false);
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(G.color) }, uTime: TIME, uSpeed: G.u.speed, uFlow: G.u.flow, uAlpha: G.u.alpha, uLen: { value: len }, uMode: { value: G.mode || 0 } },
+    vertexShader: TUBE_VS, fragmentShader: TUBE_FS, transparent: true, clipping: true,
+  });
+  const mesh = new THREE.Mesh(geo, m);
+  mesh.userData = { part, sys: [G.sys], tube: true, grp };
+  parent.add(mesh); pickables.push(mesh); tubes.push(mesh);
+  return mesh;
+}
+function part(geo, color, real, pos, partKey, sys, parent = M.ext, o = {}) {
+  const m = new THREE.Mesh(geo, mat(color, real, o));
+  m.position.copy(pos); parent.add(m); reg(m, partKey, { sys });
+  return m;
+}
+const agbGears = [];
+{
+  // --- accessory gearbox and accessories
+  const A = M.agb;
+  const housing = new THREE.Mesh(new RoundedBoxGeometry(0.66, 0.11, 0.26, 3, 0.04), mat(0x3f7f80, REAL.steel, { transparent: true, opacity: 1 }));
+  housing.position.set(1.3, -0.585, 0); A.add(housing); reg(housing, 'agb', { sys: ['drive'] });
+  const gm = mat(0xffd27a, REAL.steel, { metal: 0.85, rough: 0.3 });
+  const gearGeo = (r, teeth, w) => {
+    const s = new THREE.Shape(), N = teeth * 4;
+    for (let i = 0; i <= N; i++) { const a = i / N * TAU, rr = (i % 4 < 2) ? r : r * 0.85; i ? s.lineTo(rr * Math.cos(a), rr * Math.sin(a)) : s.moveTo(rr * Math.cos(a), rr * Math.sin(a)); }
+    const h = new THREE.Path(); h.absarc(0, 0, r * 0.25, 0, TAU, true); s.holes.push(h);
+    const g = new THREE.ExtrudeGeometry(s, { depth: w, bevelEnabled: false, curveSegments: 4 }); g.translate(0, 0, -w / 2); return g;
+  };
+  let gx = 1.02;
+  const gdefs = [[0.045, 16], [0.06, 22], [0.04, 14], [0.06, 22], [0.045, 16], [0.055, 20]];
+  let dirn = 1, prevR = 0;
+  for (let i = 0; i < gdefs.length; i++) {
+    const [r, t] = gdefs[i];
+    if (i) gx += prevR + r * 0.98;
+    const gear = new THREE.Mesh(gearGeo(r, t, 0.03), gm);
+    gear.position.set(gx, -0.585, 0); A.add(gear); reg(gear, 'agbGear', { sys: ['drive'] });
+    agbGears.push({ mesh: gear, ratio: dirn * 0.06 / r }); dirn *= -1; prevR = r;
+  }
+  part(new THREE.CylinderGeometry(0.05, 0.05, 0.13, 20).rotateX(Math.PI / 2), 0xffd23f, REAL.steel, V3(1.08, -0.6, 0.195), 'mainPump', ['fuel', 'drive'], A);
+  part(new RoundedBoxGeometry(0.15, 0.12, 0.11, 2, 0.015), 0xf5c02c, REAL.dark, V3(1.27, -0.6, 0.185), 'mfc', ['fuel', 'ctrl', 'act'], A);
+  part(new THREE.CylinderGeometry(0.055, 0.055, 0.14, 20).rotateX(Math.PI / 2), 0xff8a1f, REAL.steel, V3(1.48, -0.6, 0.2), 'abPump', ['fuel', 'drive'], A);
+  part(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 20).rotateX(Math.PI / 2), 0x7cf0a8, REAL.dark, V3(1.08, -0.6, -0.19), 'pma', ['ctrl', 'drive'], A);
+  part(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 20).rotateX(Math.PI / 2), 0xc9781a, REAL.steel, V3(1.31, -0.6, -0.19), 'lubePump', ['oil', 'drive'], A);
+  part(new THREE.CylinderGeometry(0.04, 0.04, 0.1, 20).rotateX(Math.PI / 2), 0x4f9a9a, REAL.steel, V3(1.52, -0.6, -0.18), 'starterPad', ['drive'], A);
+  // radial drive shaft, transfer gearbox, horizontal drive
+  const dm = mat(0x6fc9c9, REAL.steel, { metal: 0.85, rough: 0.25 });
+  const rs = cylBetween(V3(0.86, -0.13, 0), V3(0.86, -0.52, 0), 0.016, dm); M.fanframe.add(rs); reg(rs, 'radialShaft', { sys: ['drive'] });
+  const tgb = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.09, 0.1, 2, 0.02), mat(0x3f7f80, REAL.steel));
+  tgb.position.set(0.86, -0.57, 0); A.add(tgb); reg(tgb, 'tgb', { sys: ['drive'] });
+  const hs = cylBetween(V3(0.91, -0.585, 0), V3(1.0, -0.585, 0), 0.014, dm); A.add(hs); reg(hs, 'radialShaft', { sys: ['drive'] });
+  agbGears.push({ mesh: rs, ratio: 3.5, axis: 'y' }, { mesh: hs, ratio: 3.5, axis: 'y' });
+
+  // --- FUEL: main
+  part(new THREE.TorusGeometry(0.535, 0.011, 8, 96).rotateY(Math.PI / 2), 0xffd23f, REAL.steel, V3(1.62, 0, 0), 'fuelManifold', ['fuel']);
+  const nzMat = mat(0xffd23f, REAL.steel);
+  for (let i = 0; i < 20; i++) {
+    const a = i / 20 * 360;
+    const stem = cylBetween(P(1.62, 0.535, a), P(1.61, 0.315, a), 0.006, nzMat, 6); M.ext.add(stem); reg(stem, 'fuelNozzle', { sys: ['fuel'] });
+  }
+  tube('fuel', [V3(1.08, -1.02, 0.2), V3(1.08, -0.85, 0.21), V3(1.08, -0.7, 0.2)], 0.014, 'fuelSupply');
+  tube('fuel', [V3(1.12, -0.62, 0.26), V3(1.2, -0.62, 0.27), V3(1.27, -0.6, 0.25)], 0.012, 'fuelLine');
+  tube('fuel', [V3(1.34, -0.6, 0.25), V3(1.55, -0.58, 0.29), V3(1.75, -0.53, 0.26)], 0.012, 'fuelLine');
+  part(new RoundedBoxGeometry(0.16, 0.1, 0.12, 2, 0.02), 0xd9a441, REAL.steel, V3(1.8, -0.52, 0.2), 'fohe', ['fuel', 'oil']);
+  tube('fuel', [V3(1.86, -0.48, 0.22), P(1.75, 0.555, 150), P(1.66, 0.55, 145), P(1.62, 0.535, 143)], 0.012, 'fuelLine');
+  // --- FUEL: augmentor
+  tube('fuelab', [V3(1.48, -1.02, 0.22), V3(1.48, -0.85, 0.23), V3(1.48, -0.7, 0.22)], 0.014, 'fuelSupply');
+  tube('fuelab', [V3(1.52, -0.62, 0.28), V3(1.95, -0.56, 0.33), V3(2.35, -0.47, 0.38), P(2.6, 0.58, 145)], 0.013, 'abFuelLine');
+  part(new RoundedBoxGeometry(0.16, 0.1, 0.1, 2, 0.02), 0xff8a1f, REAL.dark, P(2.68, 0.58, 145), 'afc', ['fuel', 'ctrl']);
+  const zr = [0.13, 0.2, 0.27, 0.34, 0.41];
+  for (let z = 0; z < 5; z++) {
+    const x = 2.68 + z * 0.028;
+    const zm = mat(0xff8a1f, REAL.steel);
+    const rg = new THREE.Mesh(new THREE.TorusGeometry(0.515 + z * 0.006, 0.007, 6, 96).rotateY(Math.PI / 2), zm);
+    rg.position.x = x; M.ext.add(rg); reg(rg, 'sprayRing', { stage: z + 1, sys: ['fuel'] }); zoneObjs[z].push(rg);
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * 360 + z * 9;
+      const bar = cylBetween(P(x, 0.515, a), P(x, zr[z], a), 0.0055, zm, 6); M.aug.add(bar); reg(bar, 'sprayBar', { stage: z + 1, sys: ['fuel'] }); zoneObjs[z].push(bar);
+    }
+    tube('fuelab', [P(2.68, 0.56, 150), P(x, 0.53, 152)], 0.006, 'abFuelLine');
+  }
+  // --- OIL
+  const tank = part(new THREE.CapsuleGeometry(0.07, 0.2, 6, 16).rotateZ(Math.PI / 2), 0xc9781a, REAL.steel, P(1.33, 0.56, 235), 'oilTank', ['oil']);
+  tube('oil', [V3(1.33, -0.38, -0.43), V3(1.32, -0.52, -0.33), V3(1.31, -0.6, -0.26)], 0.011, 'oilSupply');
+  tube('oil', [V3(1.26, -0.64, -0.21), V3(0.98, -0.62, -0.16), V3(0.8, -0.5, -0.12), V3(0.79, -0.3, -0.07), V3(0.785, -0.12, -0.02)], 0.009, 'oilSupply');
+  tube('oil', [V3(0.84, -0.48, -0.1), V3(0.89, -0.3, -0.06), V3(0.9, -0.15, -0.02)], 0.008, 'oilSupply');
+  tube('oil', [V3(0.78, -0.12, -0.02), V3(0.5, -0.1, -0.02), V3(0.3, -0.08, -0.02)], 0.006, 'oilSupply', M.shafts);
+  tube('oil', [V3(1.36, -0.64, -0.21), V3(1.9, -0.57, -0.24), V3(2.38, -0.52, -0.22), V3(2.47, -0.45, -0.16), V3(2.47, -0.2, -0.05)], 0.009, 'oilSupply');
+  tube('oil', [V3(2.45, -0.18, -0.03), V3(2.2, -0.14, -0.03), V3(2.08, -0.13, -0.02)], 0.006, 'oilSupply', M.shafts);
+  tube('scav', [V3(2.45, -0.2, 0.05), V3(2.45, -0.46, 0.17), V3(2.05, -0.55, 0.24), V3(1.88, -0.52, 0.22)], 0.009, 'scavLine');
+  tube('scav', [V3(1.78, -0.5, 0.14), V3(1.6, -0.5, -0.2), V3(1.42, -0.4, -0.4)], 0.009, 'scavLine');
+  for (const [x, r] of [[0.54, 0.075], [2.27, 0.075]]) { const s = part(new THREE.CylinderGeometry(r, r, 0.12, 24).rotateZ(Math.PI / 2), 0xa8641a, REAL.steel, V3(x, 0, 0), 'sump', ['oil'], M.shafts, { transparent: true, opacity: 0.55 }); }
+  // --- BLEED & anti-ice
+  part(new THREE.TorusGeometry(0.35, 0.012, 8, 80).rotateY(Math.PI / 2), 0xb07cff, REAL.steel, V3(1.3, 0, 0), 'bleedManifold', ['bleed'], M.hpc);
+  tube('bleed', [P(1.3, 0.35, 300), P(1.3, 0.47, 318), P(1.35, 0.53, 335), P(1.36, 0.63, 340)], 0.016, 'ecsDuct');
+  part(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 20), 0xb07cff, REAL.steel, P(1.36, 0.64, 340), 'ecsPort', ['bleed']).quaternion.setFromUnitVectors(UP, P(0, 1, 340).normalize());
+  tube('bleed', [P(1.56, 0.36, 268), P(1.56, 0.52, 271), P(1.38, 0.555, 277), P(1.2, 0.555, 280)], 0.013, 'cdpBleed');
+  part(new THREE.SphereGeometry(0.035, 16, 12), 0xb07cff, REAL.dark, P(1.17, 0.555, 280), 'antiIceValve', ['bleed', 'ctrl']);
+  tube('bleed', [P(1.13, 0.555, 280), P(0.6, 0.555, 284), P(0.2, 0.55, 288), P(0.06, 0.53, 290)], 0.011, 'antiIceLine');
+  part(new THREE.TorusGeometry(0.525, 0.009, 8, 96).rotateY(Math.PI / 2), 0xb07cff, REAL.steel, V3(0.05, 0, 0), 'antiIceManifold', ['bleed'], M.inlet);
+  for (const a of [120, 200, 250, 330]) tube('cool', [P(1.56, 0.235, a), P(1.75, 0.205, a + 3), P(1.93, 0.215, a + 5), P(2.0, 0.26, a + 6)], 0.007, 'coolingAir', M.comb);
+  // --- CONTROLS (FADEC)
+  const fadec = part(new RoundedBoxGeometry(0.24, 0.13, 0.08, 2, 0.015), 0x2c3a2f, REAL.dark, P(0.48, 0.57, 112), 'fadec', ['ctrl']);
+  fadec.lookAt(P(0.48, 2, 112)); fadec.rotateX(Math.PI / 2);
+  const finM = mat(0x7cf0a8, REAL.dark);
+  for (let i = 0; i < 6; i++) { const f = part(new THREE.BoxGeometry(0.004, 0.11, 0.03), 0x7cf0a8, REAL.dark, P(0.39 + i * 0.035, 0.62, 112), 'fadec', ['ctrl']); f.quaternion.copy(fadec.quaternion); }
+  const sens = [
+    ['t2Sensor', P(0.06, 0.5, 100), P(0.06, 0.44, 100)],
+    ['n1Sensor', P(0.58, 0.51, 125), P(0.58, 0.46, 125)],
+    ['ps3Sensor', P(1.56, 0.52, 122), P(1.56, 0.47, 122)],
+    ['nozPosSensor', P(3.62, 0.53, 122), P(3.62, 0.5, 122)],
+  ];
+  for (const [k, a, b] of sens) { const s = cylBetween(a, b, 0.012, mat(0x7cf0a8, REAL.steel)); M.ext.add(s); reg(s, k, { sys: ['ctrl'] }); }
+  const fadecP = P(0.48, 0.6, 118);
+  tube('ctrl', [fadecP, P(0.25, 0.56, 108), P(0.06, 0.52, 100)], 0.006, 'harness');
+  tube('ctrl', [fadecP, P(0.58, 0.54, 122)], 0.006, 'harness');
+  tube('ctrl', [fadecP, P(1.0, 0.6, 130), P(1.56, 0.54, 122)], 0.006, 'harness');
+  tube('ctrl', [P(0.52, 0.6, 125), P(0.9, 0.62, 160), V3(1.2, -0.65, 0.27)], 0.006, 'harness');
+  tube('ctrl', [P(0.5, 0.6, 128), P(0.85, 0.63, 165), V3(1.03, -0.66, -0.12), V3(1.06, -0.62, -0.2)], 0.006, 'harness');
+  tube('ctrl', [P(1.56, 0.54, 122), P(2.11, 0.55, 125), P(2.11, 0.515, 125)], 0.006, 'harness');
+  tube('ctrl', [P(2.11, 0.55, 125), P(2.68, 0.6, 140)], 0.006, 'harness');
+  tube('ctrl', [P(2.68, 0.6, 140), P(3.2, 0.56, 125), P(3.62, 0.54, 122)], 0.006, 'harness');
+  tube('ctrl', [fadecP, P(0.4, 0.75, 95), V3(0.3, 0.75, 0.95), V3(0.2, 0.95, 1.05)], 0.007, 'plaCable');
+  part(new THREE.TorusGeometry(0.508, 0.007, 6, 96).rotateY(Math.PI / 2), 0x7cf0a8, REAL.steel, V3(2.11, 0, 0), 'ftitHarness', ['ctrl'], M.lpt);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * 360 + 22; const pr = cylBetween(P(2.11, 0.508, a), P(2.11, 0.37, a), 0.005, mat(0x7cf0a8, REAL.steel), 6); M.lpt.add(pr); reg(pr, 'ftitHarness', { sys: ['ctrl'] }); }
+  // --- ACTUATION (variable geometry)
+  const um = mat(0x37c0b5, REAL.steel);
+  for (const x of [0.86, 0.94, 1.01, 1.08]) { const r = ring(x, 0.352, 0.006, um, 64); M.hpc.add(r); reg(r, 'unisonRing', { sys: ['act'] }); }
+  for (const a of [150, 330]) {
+    const b = cylBetween(P(0.9, 0.39, a), P(1.12, 0.39, a), 0.018, um); M.hpc.add(b); reg(b, 'vsvActuator', { sys: ['act'] });
+  }
+  const igvRing = ring(0.13, 0.5, 0.006, um, 96); M.inlet.add(igvRing); reg(igvRing, 'unisonRing', { sys: ['act'] });
+  const igvAct = cylBetween(P(0.16, 0.54, 140), P(0.38, 0.54, 140), 0.016, um); M.inlet.add(igvAct); reg(igvAct, 'igvActuator', { sys: ['act'] });
+  tube('hyd', [V3(1.3, -0.66, 0.22), V3(1.1, -0.6, 0.34), P(1.0, 0.5, 150)], 0.007, 'hydLine');
+  tube('hyd', [V3(1.22, -0.66, 0.2), V3(0.6, -0.58, 0.28), P(0.28, 0.555, 140)], 0.007, 'hydLine');
+  tube('hyd', [V3(1.33, -0.66, 0.22), V3(2.0, -0.6, 0.32), P(3.0, 0.57, 145), P(3.42, 0.545, 135)], 0.008, 'hydLine');
+  tube('hyd', [P(3.42, 0.545, 135), P(3.42, 0.56, 180), P(3.42, 0.545, 225)], 0.007, 'hydLine');
+  tube('hyd', [P(3.42, 0.545, 225), P(3.42, 0.56, 270), P(3.42, 0.545, 315)], 0.007, 'hydLine');
+  tube('hyd', [P(3.42, 0.545, 315), P(3.42, 0.565, 0), P(3.42, 0.545, 45)], 0.007, 'hydLine');
+}
+
+/* ============================================================
+   7. FLAMES, PLUME, SHOCK DIAMONDS
+   ============================================================ */
+const NOISE = `
+float h(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float nz(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float a=0.5, s=0.0; for(int i=0;i<4;i++){ s+=a*nz(p); p*=2.03; a*=0.5; } return s; }`;
+const FL_VS = `varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main(){ vUv=uv; vN=normalize(normalMatrix*normal); vec4 mv=modelViewMatrix*vec4(position,1.0); vV=-mv.xyz; gl_Position=projectionMatrix*mv; }`;
+function flameMat(fs, uniforms) {
+  return new THREE.ShaderMaterial({ uniforms: { uTime: TIME, ...uniforms }, vertexShader: FL_VS, fragmentShader: NOISE + fs,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+}
+// combustor flame annulus
+const combU = { uI: { value: 0.5 } };
+const combFlame = new THREE.Mesh(lathe([[1.63, 0.3], [1.66, 0.33], [1.75, 0.35], [1.9, 0.345], [1.94, 0.33], [1.94, 0.28], [1.9, 0.255], [1.75, 0.248], [1.66, 0.27], [1.63, 0.3]], 96),
+  flameMat(`uniform float uTime,uI; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+  void main(){ float n=fbm(vec2(vUv.x*40.0, vUv.y*6.0-uTime*3.0)); float a=uI*(0.35+0.9*n);
+  vec3 c=mix(vec3(1.0,0.35,0.05), vec3(1.0,0.85,0.45), n*uI); gl_FragColor=vec4(c*a*0.55,1.0); }`, combU));
+M.comb.add(combFlame);
+// augmentor flame (inside liner, flameholder to throat) — scaled per frame
+const augU = { uI: { value: 0 } };
+const augFlameGeo = lathe([[0, 0.05], [0.12, 0.55], [0.4, 0.9], [1, 1]], 64);
+const augFlame = new THREE.Mesh(augFlameGeo, flameMat(`uniform float uTime,uI; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+  void main(){ float n=fbm(vec2(vUv.x*24.0, vUv.y*5.0-uTime*5.0)); float face=abs(dot(normalize(vN),normalize(vV)));
+  float a=uI*(0.25+0.9*n)*(0.4+0.6*face);
+  vec3 c=mix(vec3(1.0,0.42,0.08), vec3(1.0,0.82,0.5), clamp(n*1.2*uI,0.0,1.0)); gl_FragColor=vec4(c*a*0.7,1.0); }`, augU));
+M.aug.add(augFlame);
+// exhaust plume (world-attached to nozzle module)
+const plumeU = { uAB: { value: 0 }, uMil: { value: 0 }, uLen: { value: 2 } };
+const plumeGeo = lathe([[0, 1], [0.15, 0.92], [0.5, 0.8], [1, 0.25]], 64);
+const plume = new THREE.Mesh(plumeGeo, flameMat(`uniform float uTime,uAB,uMil,uLen; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+  void main(){ float t=vUv.y; float face=pow(abs(dot(normalize(vN),normalize(vV))),1.4);
+  float n=fbm(vec2(vUv.x*10.0, t*uLen*3.0-uTime*7.0));
+  float fall=pow(1.0-t,1.6);
+  vec3 ab=mix(vec3(1.0,0.45,0.12), vec3(1.0,0.78,0.45), face);
+  vec3 col=ab*uAB*fall*(0.35+0.8*n)*face*1.1 + vec3(0.45,0.55,1.0)*uMil*0.16*fall*face*(0.6+0.6*n);
+  gl_FragColor=vec4(col,1.0); }`, plumeU));
+plume.frustumCulled = false;
+M.noz.add(plume);
+const diamonds = [];
+{
+  const dg = new THREE.SphereGeometry(1, 24, 12);
+  for (let i = 0; i < 7; i++) {
+    const u = { uI: { value: 0 }, uHue: { value: 0 } };
+    const d = new THREE.Mesh(dg, flameMat(`uniform float uTime,uI,uHue; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){ float face=pow(abs(dot(normalize(vN),normalize(vV))),2.5);
+      vec3 c=mix(vec3(0.55,0.65,1.0), vec3(1.0,0.62,0.78), uHue); gl_FragColor=vec4(c*face*uI,1.0); }`, u));
+    d.userData.u = u; M.noz.add(d); diamonds.push(d);
+  }
+}
+
+/* ============================================================
+   8. GAS-FLOW PARTICLES
+   ============================================================ */
+const NP = 9000;
+const pPos = new Float32Array(NP * 3), pCol = new Float32Array(NP * 3), pSize = new Float32Array(NP);
+const PS = [];
+let plumeEnd = 6.5;
+for (let i = 0; i < NP; i++) PS.push({ s: Math.random() < 0.43 ? 1 : 0, u: Math.random(), um: Math.sqrt(Math.random()), th: Math.random() * TAU, x: -0.9 + Math.random() * 7.2, j: Math.random() });
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+pGeo.setAttribute('size', new THREE.BufferAttribute(pSize, 1));
+const pU = { uScale: { value: 600 }, uOpacity: { value: 1 } };
+const pMat = new THREE.ShaderMaterial({
+  uniforms: pU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
+  clipping: true,
+  vertexShader: `#include <clipping_planes_pars_vertex>
+    attribute float size; uniform float uScale; varying vec3 vC;
+    void main(){ vC=color; vec4 mvPosition=modelViewMatrix*vec4(position,1.0); gl_PointSize=max(1.5, size*uScale/(-mvPosition.z)); gl_Position=projectionMatrix*mvPosition;
+    #include <clipping_planes_vertex>
+    }`,
+  fragmentShader: `#include <clipping_planes_pars_fragment>
+    uniform float uOpacity; varying vec3 vC;
+    void main(){
+    #include <clipping_planes_fragment>
+    vec2 d=gl_PointCoord-0.5; float r=dot(d,d)*4.0; if(r>1.0) discard; float a=(1.0-r); gl_FragColor=vec4(vC*a*uOpacity,1.0); }`,
+});
+const particles = new THREE.Points(pGeo, pMat); particles.frustumCulled = false; engine.add(particles);
+
+function radiusAt(p, x) {
+  if (x < 0.8) {
+    const h = interp(HUB_FAN, x), t = interp(TIP_FAN, x);
+    const u0 = p.s ? 0.56 + p.u * 0.42 : 0.02 + p.u * 0.5;
+    return h + (t - h) * u0;
+  }
+  if (x < 2.42) {
+    if (p.s) { const a = interp(BYP_IN, x), b = interp(BYP_OUT, x); return a + 0.006 + (b - a - 0.012) * p.u; }
+    const a = interp(CORE_HUB, x), b = interp(CORE_TIP, x); return a + 0.004 + (b - a - 0.008) * p.u;
+  }
+  if (x < NZ.x0) {
+    const inner = x < 2.92 ? interp(TAILCONE, x) : 0, outer = interp(LINER, x) - 0.008;
+    const base = p.s ? 0.66 + p.u * 0.33 : p.u * 0.62;
+    const f = smooth(2.42, 3.1, x);
+    return inner + (outer - inner) * lerp(base, p.um, f);
+  }
+  if (x < NZ.xE) return nozzleR(x) * 0.96 * p.um;
+  const d = x - NZ.xE;
+  return (NZ.rE * 0.96 + d * (0.05 + 0.04 * E.ab)) * p.um * (1 + 0.05 * Math.sin(d * 9 + p.j * 20 + TIME.value * 4));
+}
+function speedAt(p, x) {
+  if (x < 0.15) return 1.3;
+  if (x < 0.8) return 1.0;
+  if (x < 2.42) {
+    if (p.s) return 1.0;
+    if (x < 1.58) return 0.75 - 0.3 * (x - 0.8) / 0.78;
+    if (x < 1.95) return 0.42;
+    return 1.25;
+  }
+  if (x < NZ.x0) return 1.0 * (1 + 0.8 * E.ab);
+  if (x < NZ.xE) return 1.9 * (1 + 0.5 * E.ab);
+  return (3.0 + 2.2 * E.ab) * Math.max(0.5, 1 - (x - NZ.xE) * 0.07);
+}
+function tempAt(p, x) {
+  const c = E.c;
+  if (x < 0.15) return c.T2;
+  if (x < 0.8) return lerp(c.T2, c.T21, (x - 0.15) / 0.65);
+  if (x < 2.42) {
+    if (p.s) return c.T21;
+    if (x < 1.58) return lerp(c.T21, c.T3, clamp((x - 0.82) / 0.76, 0, 1));
+    if (x < 1.95) {
+      if (!E.lit) return c.T3;
+      const tf = Math.max(c.T4 * 1.12, c.T3);
+      return x < 1.72 ? lerp(c.T3, tf, smooth(1.6, 1.72, x)) : lerp(tf, c.T41, (x - 1.72) / 0.23);
+    }
+    if (x < 2.09) return lerp(c.T41, c.T45, (x - 1.95) / 0.14);
+    return lerp(c.T45, c.T5, (x - 2.09) / 0.33);
+  }
+  if (x < NZ.x0) {
+    const base = lerp(p.s ? c.T21 : c.T5, c.T6, smooth(2.42, 2.9, x));
+    if (E.ab > 0.01) return lerp(base, c.T7, smooth(2.88, 3.5, x) * (0.75 + 0.25 * p.j));
+    return base;
+  }
+  if (x < NZ.xE) return lerp(c.T7, (c.T7 + c.T9) / 2, (x - NZ.x0) / (NZ.xE - NZ.x0));
+  const d = x - NZ.xE, L = 0.6 + 2.2 * E.ab;
+  return AMB.T + ((c.T7 + c.T9) / 2 - AMB.T) * Math.exp(-d / L) * (0.6 + 0.4 * (1 - p.um));
+}
+function presAt(p, x) {
+  const c = E.c;
+  if (x < 0.15) return c.P2;
+  if (x < 0.8) return lerp(c.P2, c.P21, (x - 0.15) / 0.65);
+  if (x < 2.42) {
+    if (p.s) return lerp(c.P21, c.P16, (x - 0.8) / 1.6);
+    if (x < 1.58) return c.P21 * Math.pow(c.P3 / c.P21, clamp((x - 0.82) / 0.76, 0, 1));
+    if (x < 1.95) return lerp(c.P3, c.P4, (x - 1.58) / 0.37);
+    if (x < 2.09) return lerp(c.P4, c.P45, (x - 1.95) / 0.14);
+    return lerp(c.P45, c.P5, (x - 2.09) / 0.33);
+  }
+  if (x < NZ.x0) return lerp(lerp(p.s ? c.P16 : c.P5, c.P6, smooth(2.42, 2.9, x)), c.P7, smooth(2.9, 3.8, x));
+  if (x < NZ.xE) return lerp(c.P7, AMB.P, (x - NZ.x0) / (NZ.xE - NZ.x0));
+  return AMB.P;
+}
+/* colormaps */
+const CM_T = [[250, [0.12, 0.32, 1.0]], [420, [0.1, 0.8, 1.0]], [620, [0.55, 0.95, 0.3]], [850, [1.0, 0.85, 0.15]], [1150, [1.0, 0.5, 0.1]], [1500, [1.0, 0.16, 0.08]], [2050, [1.0, 0.9, 0.85]]];
+const CM_P = [[0, [0.18, 0.2, 0.75]], [0.25, [0.1, 0.65, 0.95]], [0.5, [0.3, 0.95, 0.55]], [0.75, [1.0, 0.85, 0.2]], [1, [1.0, 0.3, 0.55]]];
+const CM_V = [[0, [0.2, 0.3, 0.9]], [0.35, [0.25, 0.85, 0.9]], [0.65, [0.95, 0.95, 0.4]], [1, [1.0, 1.0, 1.0]]];
+function cmap(cm, v, out) {
+  if (v <= cm[0][0]) { out[0] = cm[0][1][0]; out[1] = cm[0][1][1]; out[2] = cm[0][1][2]; return; }
+  for (let i = 1; i < cm.length; i++) if (v <= cm[i][0]) {
+    const t = (v - cm[i - 1][0]) / (cm[i][0] - cm[i - 1][0]), a = cm[i - 1][1], b = cm[i][1];
+    out[0] = a[0] + (b[0] - a[0]) * t; out[1] = a[1] + (b[1] - a[1]) * t; out[2] = a[2] + (b[2] - a[2]) * t; return;
+  }
+  const l = cm[cm.length - 1][1]; out[0] = l[0]; out[1] = l[1]; out[2] = l[2];
+}
+const UI = { colorBy: 'T', flow: true, flame: true, anim: 1, explode: 0, explodeTarget: null, radial: true, labels: true, sys: 'all', paint: 'code' };
+const _c = [0, 0, 0];
+function updateParticles(dt) {
+  const flowFrac = E.c.W / 122.47;
+  const vis = UI.flow && UI.explode < 0.03;
+  particles.visible = vis && flowFrac > 0.002;
+  if (!particles.visible) return;
+  pU.uOpacity.value = clamp(flowFrac * 5, 0, 1) * (UI.sys === 'all' ? 0.5 : 0.07);
+  const spd = (0.12 + 1.15 * Math.pow(flowFrac, 0.55)) * UI.anim;
+  plumeEnd = NZ.xE + 1.2 + 2.6 * E.ab + 0.8 * flowFrac;
+  const logPmax = Math.log(34 * AMB.P / AMB.P);
+  const vMax = 3.0 + 2.2 * E.ab;
+  for (let i = 0; i < NP; i++) {
+    const p = PS[i];
+    let x = p.x;
+    const v = speedAt(p, x);
+    x += v * spd * dt;
+    if (x > plumeEnd) { x = -0.95 - Math.random() * 0.15; p.th = Math.random() * TAU; p.j = Math.random(); }
+    p.x = x;
+    if (x > 0.15 && x < 2.42) p.th += (p.s ? 0.02 : 0.05) * dt * spd * (x < 0.8 ? 1 : 2);
+    const r = radiusAt(p, x);
+    pPos[i * 3] = x; pPos[i * 3 + 1] = r * Math.cos(p.th); pPos[i * 3 + 2] = r * Math.sin(p.th);
+    if (UI.colorBy === 'T') cmap(CM_T, tempAt(p, x), _c);
+    else if (UI.colorBy === 'P') cmap(CM_P, Math.log(presAt(p, x) / AMB.P) / logPmax, _c);
+    else if (UI.colorBy === 'V') cmap(CM_V, v / vMax, _c);
+    else { if (p.s && x < 2.9) { _c[0] = 0.3; _c[1] = 0.82; _c[2] = 1; } else if (!p.s && x < 2.9) { _c[0] = 1; _c[1] = 0.5; _c[2] = 0.18; } else { const f = p.s ? 0.65 : 0.35; _c[0] = lerp(1, 0.3, f); _c[1] = lerp(0.5, 0.82, f); _c[2] = lerp(0.18, 1, f); } }
+    const fade = x < -0.6 ? smooth(-1.0, -0.6, x) : x > NZ.xE ? 1 - smooth(plumeEnd - 1.0, plumeEnd, x) : 1;
+    pCol[i * 3] = _c[0] * fade; pCol[i * 3 + 1] = _c[1] * fade; pCol[i * 3 + 2] = _c[2] * fade;
+    pSize[i] = x > NZ.xE ? 0.03 : 0.018;
+  }
+  pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = pGeo.attributes.size.needsUpdate = true;
+}
+
+/* ============================================================
+   9. PART INFORMATION
+   ============================================================ */
+const MODNAME = { inlet: ['Front frame', COLORS.inlet], fan: ['Fan', COLORS.fan], fanframe: ['Fan frame', COLORS.fanframe], hpc: ['HP compressor', COLORS.hpc], comb: ['Combustor', COLORS.comb],
+  hpt: ['HP turbine', COLORS.hpt], lpt: ['LP turbine', COLORS.lpt], tframe: ['Turbine frame', COLORS.tframe], aug: ['Augmentor', COLORS.aug], noz: ['Exhaust nozzle', COLORS.noz],
+  agb: ['Accessory drive', COLORS.agb], shafts: ['Rotor system', COLORS.shaft], ext: ['Engine externals', COLORS.ext] };
+const f0 = v => Math.round(v).toLocaleString('en-US');
+const degF = K => (K - 273.15) * 9 / 5 + 32;
+const PARTS = {
+  frontFrame: { n: 'Front frame & inlet lip', d: 'Structural ring at the engine face. It carries the forward mount loads and the variable inlet guide vanes. Hot bleed air from the anti-ice manifold heats it in icing conditions.', s: { Material: 'Titanium alloy', Station: '2 (fan face)' }, live: () => `T2 ${f0(degF(E.c.T2))} °F · P2 ${(E.c.P2 / PSI).toFixed(1)} psia` },
+  igv: { n: 'Variable fan inlet guide vanes', d: 'A row of 20 hinged vanes ahead of the fan. FADEC schedules their angle against corrected fan speed. This sets the swirl into stage-1 blades and keeps the fan away from stall at low speed.', s: { Count: '20 (representative)', Actuation: 'Unison ring + fuel-draulic actuator' } },
+  fanRotor: { n: s => `Fan rotor — stage ${s}`, d: 'Wide-chord titanium blades on the low-pressure spool. Together, the three fan stages raise the pressure of all 270 lb/s of inlet air. Roughly 43% of it then bypasses the core.', s: { Material: 'Ti-6Al-4V (typical)', Spool: 'LP (N1)', 'Driven by': '2-stage LPT' }, live: () => `N1 ${E.n1.toFixed(1)}% · fan PR ${E.c.FPR.toFixed(2)}` },
+  fanDisc: { n: s => s ? `Fan disc — stage ${s}` : 'Fan rotor drum', d: 'Rotating disc and drum structure that holds the fan blades in dovetail slots. It transmits torque from the LP shaft.', s: { Spool: 'LP (N1)' } },
+  fanStator: { n: s => `Fan stator — stage ${s}`, d: 'Stationary vanes between fan rotors. They remove swirl and convert velocity into static pressure before the next stage.', s: { Function: 'Diffusion, de-swirl' } },
+  fanOGV: { n: 'Fan outlet guide vanes', d: 'The last fan vane row. It straightens the flow just before the splitter divides it into core and bypass streams.', s: { Function: 'De-swirl ahead of splitter' } },
+  spinner: { n: 'Spinner', d: 'Aerodynamic nose cone on the fan hub. It guides air smoothly into the blade roots and rotates with the LP spool.', s: { Spool: 'LP (N1)' } },
+  fanCase: { n: 'Fan case', d: 'Containment casing around the fan. It is built to hold a released fan blade. It also carries the N1 speed pickup and the FADEC mounting pads.', s: { Material: 'Titanium alloy' } },
+  splitter: { n: 'Flow splitter', d: 'The sharp leading edge that divides fan discharge. The inner stream goes to the HP compressor. The outer stream goes to the bypass duct, at a bypass ratio of 0.76.', s: { 'Bypass ratio': '0.76 (published)' }, live: () => `Core ${f0(E.c.Wc * LB_S)} lb/s · bypass ${f0(E.c.Wb * LB_S)} lb/s` },
+  fanFrame: { n: 'Fan frame', d: 'Main structural frame. Its struts carry bearing loads to the outer case and the forward engine mount. One strut houses the radial drive shaft, and others carry the forward sump oil lines.', s: { Struts: '8', Houses: 'No. 1–3 bearing sump, radial shaft' } },
+  hpcIGV: { n: 'HPC variable inlet guide vanes', d: 'Variable vanes at the core inlet. FADEC closes them at low corrected speed so that front HPC stages do not stall during starts and part-power operation.', s: { Actuation: 'VSV actuators + unison ring' } },
+  hpcRotor: { n: s => `HPC rotor — stage ${s}`, d: 'Axial compressor stage on the high-pressure spool. Across all nine stages, core air pressure rises about 9:1. Combined with the fan, that gives an overall pressure ratio near 30.7.', s: { Spool: 'HP (N2)', Material: 'Ti alloy front stages, Ni alloy rear (typical)' }, live: () => `N2 ${E.n2.toFixed(1)}% · HPC PR ${E.c.HPR.toFixed(2)} · T3 ${f0(degF(E.c.T3))} °F` },
+  hpcDisc: { n: s => s ? `HPC disc — stage ${s}` : 'HPC rotor drum', d: 'Spool structure carrying the compressor blades. The HPC drum is joined to the HP shaft and turbine disc by the HP spool tie.', s: { Spool: 'HP (N2)' } },
+  hpcVSV: { n: s => `HPC variable stator — stage ${s}`, d: 'Variable stators on stages 1–3. Their angle is scheduled with corrected core speed through unison rings. This holds incidence near the design point across the operating range.', s: { Actuation: '2 VSV actuators' } },
+  hpcStator: { n: s => `HPC stator — stage ${s}`, d: 'Fixed vane row that recovers static pressure and sets the flow angle for the next rotor.', s: { Type: 'Fixed' } },
+  hpcCase: { n: 'HP compressor case', d: 'Pressure casing around the core compressor. It carries the variable-stator bushings and the stage bleed manifold, and forms the inner wall of the bypass duct.', s: { 'Max pressure': '≈ 450 psia (CDP, MIL)' }, live: () => `P3 ${(E.c.P3 / PSI).toFixed(0)} psia` },
+  bypassDuct: { n: 'Bypass duct (outer case)', d: 'Annular duct that carries fan air around the core to the mixer at the turbine exit. Bypass air also cools the outer casings.', s: { Flow: '≈ 43% of total airflow' }, live: () => `Bypass ${f0(E.c.Wb * LB_S)} lb/s at ${f0(degF(E.c.T21))} °F` },
+  combCase: { n: 'Combustor case', d: 'Outer pressure vessel for the combustor. It holds compressor-discharge pressure and carries the fuel nozzle bosses and PS3 sensor.', s: {} },
+  combLiner: { n: 'Annular combustor liner', d: 'A ring-shaped combustion chamber. Film-cooling holes and dilution holes mix compressor air into the burning fuel, bringing the gas from flame temperature down to a turbine-acceptable profile.', s: { Type: 'Annular, machined-ring liner (typical)', Material: 'Ni/Co superalloy with TBC (typical)' }, live: () => E.lit ? `T4 ${f0(degF(E.c.T4))} °F · f/a ${E.c.f.toFixed(4)}` : 'Not lit' },
+  combDome: { n: 'Combustor dome', d: 'Front wall of the combustor, holding the 20 swirler cups. It sets up the recirculation zone that anchors the flame.', s: { Swirlers: '20' } },
+  swirler: { n: 'Swirler cups', d: 'Each fuel nozzle sprays into a swirler. The swirling air atomizes the fuel and stabilizes the flame.', s: { Count: '20' } },
+  hptNGV: { n: 'HPT nozzle guide vanes', d: 'The hottest stationary parts in the engine. These vanes accelerate and turn combustor gas onto the HP turbine blades. They are cooled internally by compressor discharge air.', s: { Material: 'Single-crystal / DS Ni superalloy, air-cooled (typical)' }, live: () => `Gas temperature ${f0(degF(E.c.T4))} °F` },
+  hptRotor: { n: 'HP turbine rotor (1 stage)', d: 'A single highly loaded stage that extracts enough work to drive all nine HPC stages and the accessory gearbox. The blades are air-cooled.', s: { Spool: 'HP (N2)', Stages: '1 (published)', Material: 'Single-crystal Ni superalloy (typical)' }, live: () => `T41 ${f0(degF(E.c.T41))} °F → T45 ${f0(degF(E.c.T45))} °F` },
+  hptDisc: { n: 'HP turbine disc', d: 'Powder-metallurgy nickel disc carrying the HPT blades. It is bolted to the HP shaft and compressor drum.', s: { Spool: 'HP (N2)' } },
+  lptNGV: { n: s => `LPT nozzle vanes — stage ${s}`, d: 'Stationary vanes that turn the gas onto the LP turbine blades. The FTIT thermocouples sit just upstream of stage 1.', s: {} },
+  lptRotor: { n: s => `LP turbine rotor — stage ${s}`, d: 'Two stages that drive the fan through the LP shaft, which runs inside the HP spool. The two shafts are concentric and counter-rotate.', s: { Spool: 'LP (N1)', Stages: '2 (published)' }, live: () => `T45 ${f0(degF(E.c.T45))} °F → T5 ${f0(degF(E.c.T5))} °F` },
+  lptDisc: { n: s => `LPT disc — stage ${s}`, d: 'Disc carrying the LPT blades. It is splined to the LP shaft.', s: { Spool: 'LP (N1)' } },
+  turbCase: { n: 'Turbine case', d: 'Casing around the HP and LP turbines. Active clearance control air can be used to hold blade tip gaps.', s: {} },
+  tframe: { n: 'Turbine rear frame', d: 'Aft structural frame. It carries the No. 5 bearing and the aft mount, and removes residual swirl from turbine exhaust.', s: { Struts: '14' } },
+  mixer: { n: 'Mixer', d: 'Confluent-flow mixer where the hot core stream meets cool bypass air. The mixed stream feeds the augmentor.', s: {}, live: () => `Mixed T6 ${f0(degF(E.c.T6))} °F` },
+  tailcone: { n: 'Center body (tail cone)', d: 'Fairs the turbine hub into the augmentor and helps diffuse the flow before the flameholders.', s: {} },
+  augCase: { n: 'Augmentor case', d: 'Outer duct of the afterburner. Bypass air flows between it and the liner to cool the case.', s: {} },
+  augLiner: { n: 'Augmentor cooling liner', d: 'A perforated, corrugated screech/cooling liner. It shields the case from flame temperatures above 3,000 °F in max AB and damps combustion instabilities.', s: { Material: 'Ni superalloy (typical)' }, live: () => `T7 ${f0(degF(E.c.T7))} °F` },
+  flameholder: { n: 'Flameholders (V-gutters)', d: 'Radial and circumferential V-gutters. They create low-velocity wakes where augmentor fuel can burn steadily in a fast-moving stream.', s: { Layout: '3 rings + 12 radial gutters (representative)' } },
+  sprayRing: { n: s => `Augmentor fuel manifold — zone ${s}`, d: 'One of five spray-ring zones. They light in sequence as the throttle moves through the AB range. Zone 1 lights in the core stream first; outer zones fill the bypass stream.', s: { Zones: '5 (representative)' }, live: s => `Zone ${s}: ${E.ab > 0 && abZoneLit() >= s ? 'LIT' : 'off'}` },
+  sprayBar: { n: s => `Spray bar — zone ${s}`, d: 'Radial spray bars inject augmentor fuel upstream of the flameholders.', s: {}, live: s => `Zone ${s}: ${E.ab > 0 && abZoneLit() >= s ? 'flowing' : 'dry'}` },
+  nozConv: { n: 'Convergent (primary) flaps', d: 'These flaps set the throat area A8. FADEC closes the throat near MIL to raise pressure, and opens it in AB so the hotter, larger-volume flow can pass without pushing back on the fan.', s: { Flaps: '16 + seals', Actuators: '4' }, live: () => `NOZ POS ${E.noz.toFixed(0)}% · A8 ${((0.22 + 0.4 * E.noz / 100) * 1550).toFixed(0)} in²` },
+  nozDiv: { n: 'Divergent (secondary) flaps', d: 'They set the exit area A9. The supersonic section expands the jet. The flaps are linked to the convergent flaps, so the expansion ratio follows a schedule.', s: { Flaps: '16 + seals' }, live: () => `A9/A8 ${((NZ.rE / NZ.rT) ** 2).toFixed(2)}` },
+  nozExt: { n: 'External flaps', d: 'Outer aerodynamic flaps that fair the nozzle into the airframe boattail.', s: {} },
+  nozzleShroud: { n: 'Nozzle mount ring', d: 'Static ring on which the flap hinges and actuators mount.', s: {} },
+  nozAct: { n: 'Nozzle actuator', d: 'One of four actuators that drive the convergent flap sync ring. Position feedback goes to the FADEC.', s: { Count: '4' }, live: () => `Commanded ${E.noz.toFixed(0)}%` },
+  lpShaft: { n: 'LP shaft', d: 'Long inner shaft that transmits LPT power forward to the fan. It runs on bearings 1, 2 and 5.', s: { Spool: 'LP (N1)' }, live: () => `N1 ${E.n1.toFixed(1)}%` },
+  hpShaft: { n: 'HP shaft', d: 'Hollow shaft joining the HPT to the HPC. A bevel gear at its front drives the radial accessory shaft.', s: { Spool: 'HP (N2)' }, live: () => `N2 ${E.n2.toFixed(1)}%` },
+  bevelGear: { n: 'Inlet gearbox bevel gear', d: 'Takes power off the HP spool and turns it 90° into the radial drive shaft.', s: {} },
+  bearing: { n: s => `No. ${s} bearing`, d: 'Rolling-element main bearing (ball for thrust, roller for radial) in an oil-wetted sump.', s: {}, live: () => `Oil ${E.oil.toFixed(0)} psi` },
+  sump: { n: 'Bearing sump', d: 'Sealed oil cavity around the bearings. Pressurized seal air keeps oil in. Scavenge pumps return the oil to the tank.', s: {} },
+  agb: { n: 'Accessory gearbox (AGB)', d: 'Mounted under the core and driven by N2 through the radial shaft. It turns the fuel pumps, lube pump, PMA and the starter pad (driven by the F-16 JFS through the airframe ADG).', s: { Drive: 'HP spool (N2)' } },
+  agbGear: { n: 'AGB gear train', d: 'Spur-gear train that sets the speed for each accessory pad.', s: {} },
+  radialShaft: { n: 'Radial / horizontal drive shafts', d: 'Carry power from the inlet gearbox down through a fan-frame strut to the transfer gearbox, then aft to the AGB.', s: {} },
+  tgb: { n: 'Transfer gearbox', d: 'Turns the drive 90° again, from the radial shaft into the horizontal shaft for the AGB.', s: {} },
+  starterPad: { n: 'Starter drive pad', d: 'Input pad for the airframe-mounted JFS. The JFS spins the core to about 20% N2 for light-off.', s: {} },
+  mainPump: { n: 'Main fuel pump', d: 'Engine-driven pump: a centrifugal boost stage feeding a high-pressure gear stage. It supplies the main fuel control.', s: { Drive: 'AGB (N2)' }, live: () => `${f0(E.c.Wf * PPH)} pph` },
+  mfc: { n: 'Main fuel control (MFC)', d: 'Hydromechanical metering unit under FADEC authority. It meters combustor fuel and supplies servo fuel pressure to the variable-geometry actuators.', s: {}, live: () => `Metering ${f0(E.c.Wf * PPH)} pph` },
+  abPump: { n: 'Augmentor fuel pump', d: 'Large centrifugal pump that delivers up to about 40,000 pph to the augmentor in max AB.', s: {}, live: () => `${f0(E.c.Wfab * PPH)} pph` },
+  afc: { n: 'Augmentor fuel control', d: 'Splits AB fuel between the five spray zones and sequences them as the throttle moves through the AB range.', s: {}, live: () => E.ab > 0 ? `Zone ${abZoneLit()} · ${f0(E.c.Wfab * PPH)} pph` : 'Inactive' },
+  fohe: { n: 'Fuel/oil heat exchanger', d: 'Uses cold incoming fuel to cool hot scavenge oil before it returns to the tank. This also warms the fuel.', s: {} },
+  fuelManifold: { n: 'Main fuel manifold', d: 'Ring manifold that feeds the 20 combustor fuel nozzles.', s: { Nozzles: '20' } },
+  fuelNozzle: { n: 'Fuel nozzle', d: 'Dual-orifice nozzle that atomizes fuel into a swirler cup. The stem passes through the bypass duct in a faired strut.', s: {} },
+  fuelSupply: { n: 'Airframe fuel supply', d: 'Fuel from the F-16 feed system enters the engine-driven pumps here.', s: {} },
+  fuelLine: { n: 'Main fuel line', d: 'Metered fuel path: pump → MFC → fuel/oil heat exchanger → manifold.', s: {}, live: () => `${f0(E.c.Wf * PPH)} pph` },
+  abFuelLine: { n: 'Augmentor fuel line', d: 'Carries AB fuel from the augmentor pump and control to the five zone manifolds.', s: {}, live: () => `${f0(E.c.Wfab * PPH)} pph` },
+  oilTank: { n: 'Oil tank', d: 'Engine-mounted oil reservoir with a sight gauge and a de-aerator.', s: {} },
+  lubePump: { n: 'Lube & scavenge pump', d: 'One pressure element and several scavenge elements on a common shaft. It feeds the sumps and returns their oil.', s: {}, live: () => `${E.oil.toFixed(0)} psi` },
+  oilSupply: { n: 'Oil supply line', d: 'Pressurized oil to the bearing sumps through frame struts.', s: {}, live: () => `${E.oil.toFixed(0)} psi` },
+  scavLine: { n: 'Scavenge return line', d: 'Returns oil from the sumps to the tank through the fuel/oil heat exchanger.', s: {} },
+  bleedManifold: { n: 'HPC stage bleed manifold', d: 'Collects mid-compressor air for customer bleed. On the F-16 this feeds the ECS for cockpit pressurization and avionics cooling.', s: {}, live: () => `≈ ${(Math.sqrt(E.c.P21 * E.c.P3) / PSI).toFixed(0)} psia` },
+  ecsDuct: { n: 'ECS bleed duct', d: 'Customer bleed to the airframe environmental control system.', s: {} },
+  ecsPort: { n: 'Customer bleed port', d: 'Flange where the airframe ECS duct connects.', s: {} },
+  cdpBleed: { n: 'CDP bleed line', d: 'Compressor-discharge air, the hottest bleed, tapped for inlet anti-icing.', s: {}, live: () => `${f0(degF(E.c.T3))} °F` },
+  antiIceValve: { n: 'Anti-ice valve', d: 'Solenoid valve controlled by the FADEC. It sends hot air to the front frame and IGVs when ice is detected or the pilot selects it.', s: {} },
+  antiIceLine: { n: 'Anti-ice line', d: 'Hot air to the front-frame manifold.', s: {} },
+  antiIceManifold: { n: 'Front-frame anti-ice manifold', d: 'Distributes hot air into the hollow front-frame struts and IGVs.', s: {} },
+  coolingAir: { n: 'Turbine cooling air', d: 'CDP air routed beneath the combustor to cool HPT vanes, blades and discs. About 20% of core flow is used in the model.', s: {} },
+  fadec: { n: 'FADEC (digital electronic control)', d: 'Full-authority digital engine control. It reads PLA, T2, N1, N2, PS3, FTIT and nozzle position. It then schedules main and AB fuel, IGV/VSV angles and nozzle area, and enforces RPM, FTIT and stall limits.', s: { Power: 'Engine PMA (with aircraft backup)' }, live: () => `PLA ${E.thr.toFixed(0)}% · N2 ${E.n2.toFixed(1)}% · FTIT ${E.ftit.toFixed(0)} °C` },
+  t2Sensor: { n: 'T2 inlet temperature sensor', d: 'Measures fan inlet temperature for corrected-speed scheduling.', s: {}, live: () => `${f0(degF(E.c.T2))} °F` },
+  n1Sensor: { n: 'N1 speed pickup', d: 'Magnetic pickup that counts fan blade passages to give fan speed.', s: {}, live: () => `${E.n1.toFixed(1)}%` },
+  ps3Sensor: { n: 'PS3 pressure sensor', d: 'Compressor-discharge static pressure. Fuel scheduling and surge protection use it.', s: {}, live: () => `${(E.c.P3 / PSI).toFixed(0)} psia` },
+  nozPosSensor: { n: 'Nozzle position transducer', d: 'Feeds actual nozzle position back to FADEC and to the cockpit NOZ POS gauge.', s: {}, live: () => `${E.noz.toFixed(0)}%` },
+  ftitHarness: { n: 'FTIT thermocouple harness', d: 'Eight thermocouple probes at the LPT inlet. Their averaged reading is the cockpit FTIT, the main engine temperature limit.', s: { Limit: '980 °C MIL/AB (GE-129 ops limits)' }, live: () => `FTIT ${E.ftit.toFixed(0)} °C` },
+  harness: { n: 'Control harness', d: 'Signal and power wiring between FADEC, sensors and actuators.', s: {} },
+  plaCable: { n: 'PLA input', d: 'Throttle position (power lever angle) from the cockpit to the FADEC.', s: {}, live: () => `${E.thr.toFixed(0)}%` },
+  pma: { n: 'Permanent magnet alternator', d: 'Self-contained power for the FADEC once the engine is turning.', s: {} },
+  unisonRing: { n: 'Unison ring', d: 'Ring that rotates every vane of a variable row together through lever arms.', s: {} },
+  vsvActuator: { n: 'VSV actuator', d: 'Fuel-pressure actuator that positions the HPC IGV and stage 1–3 stator unison rings.', s: { Count: '2' } },
+  igvActuator: { n: 'Fan IGV actuator', d: 'Positions the fan inlet guide vanes.', s: {} },
+  hydLine: { n: 'Actuation line', d: 'High-pressure servo fuel from the MFC to the variable-geometry and nozzle actuators.', s: {} },
+};
+const abZoneLit = () => E.ab <= 0 ? 0 : Math.min(5, Math.max(1, Math.ceil(E.ab * 5 - 0.0001)));
+
+/* ============================================================
+   10. SYSTEMS ISOLATION
+   ============================================================ */
+const SYSTEMS = [
+  { id: 'all', name: 'Whole engine', color: '#c9d2dc' },
+  { id: 'spools', name: 'Rotating spools', color: '#9fe0b8', d: 'The two concentric spools. LP (green): fan + 2-stage LPT on the inner shaft. HP (blue): 9-stage HPC + 1-stage HPT on the hollow outer shaft. The spools are not mechanically linked; each turbine drives its own compressor.', vals: () => `N1 <b>${E.n1.toFixed(1)}%</b> N2 <b>${E.n2.toFixed(1)}%</b> Fan PR <b>${E.c.FPR.toFixed(2)}</b> HPC PR <b>${E.c.HPR.toFixed(2)}</b>` },
+  { id: 'fuel', name: 'Fuel', color: '#ffd23f', d: 'Main path: airframe → main pump → MFC → fuel/oil heat exchanger → manifold → 20 nozzles. Augmentor path: AB pump → AB control → 5 zone spray rings, sequenced 1–5 as throttle moves into AB.', vals: () => `Main <b>${f0(E.c.Wf * PPH)}</b> pph AB <b>${f0(E.c.Wfab * PPH)}</b> pph Zone <b>${abZoneLit() || '–'}</b> f/a <b>${E.c.f.toFixed(4)}</b>` },
+  { id: 'oil', name: 'Lube oil', color: '#c9781a', d: 'Tank → lube pump → sumps feeding bearings 1–5 → scavenge return → fuel/oil heat exchanger → tank. Oil pressure follows N2.', vals: () => `Oil <b>${E.oil.toFixed(0)}</b> psi (limits 25–65 MIL/AB, 15 min idle)` },
+  { id: 'bleed', name: 'Bleed & anti-ice', color: '#b07cff', d: 'Mid-stage HPC bleed feeds the F-16 ECS. CDP bleed feeds the front-frame anti-ice and (internally) HPT cooling air.', vals: () => `Stage bleed ≈ <b>${(Math.sqrt(E.c.P21 * E.c.P3) / PSI).toFixed(0)}</b> psia CDP <b>${(E.c.P3 / PSI).toFixed(0)}</b> psia at <b>${f0(degF(E.c.T3))}</b> °F` },
+  { id: 'drive', name: 'Accessory drive', color: '#6fc9c9', d: 'HP spool → bevel gear → radial shaft through the fan frame → transfer gearbox → AGB. The AGB turns the fuel pumps, lube pump, PMA and starter pad. All of it runs at N2-proportional speed.', vals: () => `N2 <b>${E.n2.toFixed(1)}%</b> Phase <b>${E.phase}</b>` },
+  { id: 'ctrl', name: 'Engine control', color: '#7cf0a8', d: 'FADEC reads PLA, T2, N1, PS3, FTIT (8 probes) and nozzle position. It then commands MFC fuel, the AB control, variable vanes and nozzle area.', vals: () => `PLA <b>${E.thr.toFixed(0)}%</b> FTIT <b>${E.ftit.toFixed(0)}</b> °C NOZ <b>${E.noz.toFixed(0)}%</b>` },
+  { id: 'act', name: 'Variable geometry', color: '#37c0b5', d: 'Fan IGVs, HPC IGV + stages 1–3 stators (unison rings and 2 actuators), and the convergent-divergent nozzle (4 actuators). All are driven by servo fuel from the MFC.', vals: () => `NOZ <b>${E.noz.toFixed(0)}%</b> A8 <b>${((0.22 + 0.4 * E.noz / 100) * 1550).toFixed(0)}</b> in² A9/A8 <b>${((NZ.rE / NZ.rT) ** 2).toFixed(2)}</b>` },
+];
+let endView = false;
+function refreshLabels() {
+  const on = UI.labels && UI.sys === 'all' && CLIP.mode !== 'slice' && !endView;
+  for (const g of Object.values(M)) if (g.userData.label) g.userData.label.visible = on;
+}
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x5f7086, transparent: true, opacity: 0.05, depthWrite: false });
+clipMats.push(ghostMat);
+function applySystem(id) {
+  UI.sys = id;
+  for (const m of partMeshes) {
+    const inSys = id === 'all' || m.userData.sys.includes(id);
+    m.material = inSys ? m.userData.mat0 : ghostMat;
+    m.userData.ghost = !inSys;
+  }
+  for (const [k, G] of Object.entries(GRP)) G.u.alpha.value = (id === 'all' || G.sys === id) ? 1 : 0.05;
+  for (const t of tubes) t.userData.ghost = !(id === 'all' || t.userData.sys.includes(id));
+  // spool coloring cue: LP vs HP
+  const housing = partMeshes.find(m => m.userData.part === 'agb');
+  housing.userData.mat0.opacity = id === 'drive' ? 0.25 : 1; housing.userData.mat0.depthWrite = id !== 'drive';
+  refreshLabels();
+  document.querySelectorAll('#sysbar button').forEach(b => b.classList.toggle('on', b.dataset.sys === id));
+  const info = $('#sysinfo');
+  const S = SYSTEMS.find(s => s.id === id);
+  if (id === 'all') { info.hidden = true; }
+  else { info.hidden = false; info.innerHTML = `<h3 style="color:${S.color}">${S.name}</h3><p>${S.d}</p><div class="vals" id="sysVals"></div>`; }
+}
+{
+  const bar = $('#sysbar');
+  SYSTEMS.forEach((s, i) => {
+    const b = document.createElement('button'); b.dataset.sys = s.id; b.style.setProperty('--c', s.color);
+    b.innerHTML = `<i></i>${s.name}`; b.title = `Key ${i}`; b.onclick = () => applySystem(s.id); bar.appendChild(b);
+  });
+}
+
+/* ============================================================
+   11. INTERACTION: picking, cards, tooltip
+   ============================================================ */
+const ray = new THREE.Raycaster();
+const ptr = new THREE.Vector2();
+let hoverMesh = null, selMesh = null, downPos = null;
+function pick(ev) {
+  const r = canvas.getBoundingClientRect();
+  ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const vis = pickables.filter(m => m.visible && !m.userData.ghost && isVisibleDeep(m));
+  const hits = ray.intersectObjects(vis, false);
+  for (const h of hits) {
+    const m = h.object;
+    const clipped = m.material && m.material.clippingPlanes && m.material.clippingPlanes.length && isClippedWorld(h.point);
+    if (clipped) continue;
+    return m;
+  }
+  return null;
+}
+function isVisibleDeep(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
+function setEmissive(m, on) {
+  if (!m) return;
+  const mt = m.material;
+  if (mt && mt.isMeshStandardMaterial && mt !== ghostMat) { mt.userData.hl = on; }
+}
+function partTitle(m) {
+  const P0 = PARTS[m.userData.part]; if (!P0) return m.userData.part;
+  return typeof P0.n === 'function' ? P0.n(m.userData.stage) : P0.n;
+}
+function moduleOf(m) { let o = m; while (o && !(o.userData && o.userData.key)) o = o.parent; return o ? o.userData.key : 'ext'; }
+canvas.addEventListener('pointerdown', e => { downPos = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e => {
+  if (!downPos || Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]) > 5) return;
+  const m = pick(e);
+  setEmissive(selMesh, false); selMesh = m; setEmissive(selMesh, true);
+  showCard(m);
+});
+let hoverT = 0;
+canvas.addEventListener('pointermove', e => {
+  const now = performance.now(); if (now - hoverT < 60 || e.buttons) { if (e.buttons) $('#tip').hidden = true; return; } hoverT = now;
+  const m = pick(e);
+  if (hoverMesh !== m) { if (hoverMesh !== selMesh) setEmissive(hoverMesh, false); hoverMesh = m; setEmissive(m, true); }
+  const tip = $('#tip');
+  if (m) { tip.hidden = false; tip.textContent = partTitle(m); tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; canvas.style.cursor = 'pointer'; }
+  else { tip.hidden = true; canvas.style.cursor = ''; }
+});
+canvas.addEventListener('pointerleave', () => { $('#tip').hidden = true; if (hoverMesh !== selMesh) setEmissive(hoverMesh, false); hoverMesh = null; });
+function showCard(m) {
+  const card = $('#card');
+  if (!m) { card.hidden = true; return; }
+  const key = m.userData.part, P0 = PARTS[key] || { n: key, d: '', s: {} };
+  const mk = moduleOf(m); const [mn, mc] = MODNAME[mk] || MODNAME.ext;
+  const sysList = m.userData.sys.filter(s => s !== 'spools' || true).map(s => SYSTEMS.find(x => x.id === s)).filter(Boolean);
+  const specs = Object.entries(P0.s || {}).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  card.innerHTML = `<button class="x" aria-label="Close">×</button>
+    <span class="chip" style="--c:#${new THREE.Color(mc).getHexString()}">${mn}</span>
+    <h3>${partTitle(m)}</h3>
+    <div class="live" id="cardLive"></div>
+    <p>${P0.d}</p>
+    ${specs ? `<dl>${specs}</dl>` : ''}
+    ${sysList.length ? `<div class="row" style="justify-content:flex-start;flex-wrap:wrap">${sysList.map(s => `<button class="btn" data-iso="${s.id}" style="border-color:${s.color}">Isolate ${s.name.toLowerCase()}</button>`).join('')}</div>` : ''}`;
+  card.hidden = false;
+  card.querySelector('.x').onclick = () => { card.hidden = true; setEmissive(selMesh, false); selMesh = null; };
+  card.querySelectorAll('[data-iso]').forEach(b => b.onclick = () => applySystem(b.dataset.iso));
+  card.dataset.part = key; card.dataset.stage = m.userData.stage ?? '';
+  updateCardLive();
+}
+function updateCardLive() {
+  const card = $('#card'); if (card.hidden) return;
+  const P0 = PARTS[card.dataset.part]; const el = $('#cardLive');
+  if (!el) return;
+  el.textContent = P0 && P0.live ? P0.live(+card.dataset.stage || undefined) : '';
+  el.hidden = !(P0 && P0.live);
+}
+
+/* ============================================================
+   12. UI WIRING
+   ============================================================ */
+// throttle
+const track_ = $('#thrTrack'), handle = $('#thrHandle');
+const THR_MARKS = [[0, 'OFF', 'major'], [10, 'IDLE', 'major'], [70, 'MIL', 'major'], [72, 'AB', 'ab'], [77.6, 'Z1', 'ab'], [83.2, 'Z2', 'ab'], [88.8, 'Z3', 'ab'], [94.4, 'Z4', 'ab'], [100, 'MAX', 'ab major']];
+for (const [v, l, c] of THR_MARKS) {
+  const d = document.createElement('div'); d.className = 'thr-mark ' + c; d.style.top = (100 - v) + '%';
+  d.innerHTML = `<span>${l}</span>`; track_.appendChild(d);
+}
+function setThrottle(v, snap = true) {
+  v = clamp(v, 0, 100);
+  if (snap) { for (const d of [10, 70, 72]) if (Math.abs(v - d) < 1.6) v = d; if (v > 0 && v < 5) v = v < 2.5 ? 0 : 5; }
+  E.thr = v;
+  handle.style.top = (100 - v) + '%';
+  handle.setAttribute('aria-valuenow', v.toFixed(0));
+  handle.setAttribute('aria-valuetext', thrLabel(v));
+  $('#thrVal').textContent = thrLabel(v);
+}
+function thrLabel(v) {
+  if (v < 5) return 'CUTOFF';
+  if (v <= 10.5) return 'IDLE';
+  if (v < 69.5) return `PART ${v.toFixed(0)}%`;
+  if (v < 72) return 'MIL';
+  if (v >= 99.5) return 'MAX AB';
+  return `AB Z${abZone(v)}`;
+}
+let dragging = false;
+function thrFromEvent(e) { const r = track_.getBoundingClientRect(); return 100 - ((e.clientY - r.top) / r.height) * 100; }
+track_.addEventListener('pointerdown', e => { dragging = true; track_.setPointerCapture(e.pointerId); setThrottle(thrFromEvent(e)); handle.focus(); });
+track_.addEventListener('pointermove', e => { if (dragging) setThrottle(thrFromEvent(e)); });
+track_.addEventListener('pointerup', () => { dragging = false; });
+handle.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { setThrottle(E.thr + (e.shiftKey ? 10 : 2), false); e.preventDefault(); e.stopPropagation(); }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { setThrottle(E.thr - (e.shiftKey ? 10 : 2), false); e.preventDefault(); e.stopPropagation(); }
+});
+document.querySelectorAll('[data-thr]').forEach(b => b.onclick = () => setThrottle(+b.dataset.thr));
+setThrottle(10);
+
+// explode
+$('#explode').addEventListener('input', e => { UI.explode = +e.target.value; UI.explodeTarget = null; });
+$('#explodeBtn').onclick = () => { UI.explodeTarget = UI.explode > 0.5 ? 0 : 1; };
+$('#radial').onchange = e => UI.radial = e.target.checked;
+// section
+function setSection(mode) {
+  CLIP.mode = mode;
+  if (mode === 'none') { CLIP.planes = []; CLIP.inter = false; }
+  else if (mode === 'quarter') { CLIP.planes = [PL.top, PL.front]; CLIP.inter = true; }
+  else if (mode === 'top') { CLIP.planes = [PL.top]; CLIP.inter = false; }
+  else if (mode === 'front') { CLIP.planes = [PL.front]; CLIP.inter = false; }
+  else if (mode === 'slice') { CLIP.planes = [PL.slice]; CLIP.inter = false; }
+  $('#sliceRow').hidden = mode !== 'slice';
+  pMat.clippingPlanes = mode === 'slice' ? [PL.slice] : []; pMat.needsUpdate = true;
+  for (const t of tubes) { t.material.clippingPlanes = CLIP.planes; t.material.clipIntersection = CLIP.inter; t.material.needsUpdate = true; }
+  refreshLabels();
+  document.querySelectorAll('#sectionSeg button').forEach(b => b.classList.toggle('on', b.dataset.sec === mode));
+  applySection();
+}
+document.querySelectorAll('#sectionSeg button').forEach(b => b.onclick = () => setSection(b.dataset.sec));
+const updSlice = () => { const x = +$('#slice').value; PL.slice.constant = -(ENGINE_X + x); $('#sliceVal').textContent = `x = ${x.toFixed(2)} m`; };
+$('#slice').addEventListener('input', updSlice); updSlice();
+// flow
+const LEGENDS = {
+  T: { cm: CM_T, min: 250, max: 2050, ticks: ['−10 °F', '800', '1,610', '2,420', '3,230 °F'] },
+  P: { cm: CM_P, min: 0, max: 1, ticks: ['1 atm', '2.4', '5.8', '14', '34 atm'] },
+  V: { cm: CM_V, min: 0, max: 1, ticks: ['slow', '', '', '', 'fast'] },
+  S: null,
+};
+function setLegend() {
+  const L = LEGENDS[UI.colorBy];
+  if (!L) { $('#legendBar').style.background = 'linear-gradient(90deg,#ff8030 0 50%,#4dd1ff 50% 100%)'; $('#legendTicks').innerHTML = '<span>Core (hot) stream</span><span>Bypass stream</span>'; return; }
+  const stops = []; for (let i = 0; i <= 20; i++) { const v = L.min + (L.max - L.min) * i / 20; cmap(L.cm, v, _c); stops.push(`rgb(${_c.map(c => Math.round(c * 255)).join(',')}) ${i * 5}%`); }
+  $('#legendBar').style.background = `linear-gradient(90deg,${stops.join(',')})`;
+  $('#legendTicks').innerHTML = L.ticks.map(t => `<span>${t}</span>`).join('');
+}
+$('#colorBy').onchange = e => { UI.colorBy = e.target.value; setLegend(); };
+setLegend();
+$('#showFlow').onchange = e => UI.flow = e.target.checked;
+$('#showFlame').onchange = e => UI.flame = e.target.checked;
+$('#showLabels').onchange = e => { UI.labels = e.target.checked; refreshLabels(); };
+$('#anim').addEventListener('input', e => { UI.anim = +e.target.value; $('#animVal').textContent = UI.anim.toFixed(1) + '×'; });
+document.querySelectorAll('#paintSeg button').forEach(b => b.onclick = () => {
+  UI.paint = b.dataset.paint;
+  document.querySelectorAll('#paintSeg button').forEach(x => x.classList.toggle('on', x === b));
+  for (const m of allMats) m.color.setHex(UI.paint === 'code' ? m.userData.code : m.userData.real);
+});
+// camera views
+const VIEWS = { iso: [[-1.7, 2.1, 7.6], [0.25, -0.12, 0]], side: [[1.2, 0.2, 9.2], [1.2, -0.1, 0]], top: [[1.2, 9.2, 0.01], [1.2, 0, 0]],
+  front: [[-4.4, 0.25, 0.45], [0, 0, 0]], rear: [[7.2, 1.0, 2.2], [2.0, 0, 0]], under: [[-1.4, -4.0, 4.2], [-0.9, -0.5, 0]] };
+let camTween = null;
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
+  const [p, t] = VIEWS[b.dataset.view];
+  camTween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: V3(...p), t1: V3(...t), k: 0 };
+  document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('on', x === b));
+  endView = b.dataset.view === 'front' || b.dataset.view === 'rear'; refreshLabels();
+});
+// mobile panel toggles
+const narrow = () => window.innerWidth <= 980;
+function setPanel(id, open) {
+  $(id).classList.toggle('open', open);
+  $(id === '#left' ? '#tglLeft' : '#tglRight').setAttribute('aria-pressed', open);
+  resize();
+}
+$('#tglLeft').onclick = () => { const o = !$('#left').classList.contains('open'); setPanel('#left', o); if (o && narrow()) setPanel('#right', false); };
+$('#tglRight').onclick = () => { const o = !$('#right').classList.contains('open'); setPanel('#right', o); if (o && narrow()) setPanel('#left', false); };
+if (!narrow()) { $('#left').classList.add('open'); $('#right').classList.add('open'); }
+else { $('#tglLeft').setAttribute('aria-pressed', 'false'); $('#tglRight').setAttribute('aria-pressed', 'false'); }
+// keyboard
+window.addEventListener('keydown', e => {
+  if (e.target.matches('input,select,textarea')) return;
+  const k = e.key.toLowerCase();
+  if (e.key === 'ArrowUp') { setThrottle(E.thr + 2, false); e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { setThrottle(E.thr - 2, false); e.preventDefault(); }
+  else if (k === 'i') setThrottle(10);
+  else if (k === 'm') setThrottle(70);
+  else if (k === 'a') setThrottle(100);
+  else if (k === 'x') setThrottle(E.thr < 5 ? 10 : 0);
+  else if (k === 'e') UI.explodeTarget = UI.explode > 0.5 ? 0 : 1;
+  else if (k === 'c') { const order = ['none', 'quarter', 'top', 'front', 'slice']; setSection(order[(order.indexOf(CLIP.mode) + 1) % order.length]); }
+  else if (/^[0-7]$/.test(k)) applySystem(SYSTEMS[+k].id);
+  else if (k === 'escape') { $('#card').hidden = true; }
+});
+
+/* ============================================================
+   13. INSTRUMENTS (canvas)
+   ============================================================ */
+function dial(id, o) {
+  const cv = $(id), ctx = cv.getContext('2d'), W = cv.width, R = W / 2;
+  return v => {
+    ctx.clearRect(0, 0, W, W);
+    ctx.save(); ctx.translate(R, R);
+    ctx.fillStyle = '#05080b'; ctx.beginPath(); ctx.arc(0, 0, R - 4, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#2a3846'; ctx.lineWidth = 4; ctx.stroke();
+    const a0 = o.a0 ?? -225 * Math.PI / 180, a1 = o.a1 ?? 45 * Math.PI / 180;
+    const ang = val => a0 + (a1 - a0) * clamp((val - o.min) / (o.max - o.min), 0, 1);
+    for (const [s, e, col] of (o.bands || [])) { ctx.strokeStyle = col; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(0, 0, R - 18, ang(s), ang(e)); ctx.stroke(); }
+    for (let t = o.min; t <= o.max + 1e-6; t += o.minor) {
+      const a = ang(t), maj = Math.abs((t - o.min) / o.major - Math.round((t - o.min) / o.major)) < 1e-6;
+      ctx.strokeStyle = maj ? '#e9f1f8' : '#7f8fa1'; ctx.lineWidth = maj ? 3 : 1.5;
+      const r1 = R - 12, r2 = R - (maj ? 30 : 22);
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1); ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2); ctx.stroke();
+      if (maj && o.lbl) { ctx.fillStyle = '#e9f1f8'; ctx.font = '22px "Share Tech Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.lbl(t), Math.cos(a) * (R - 50), Math.sin(a) * (R - 50)); }
+    }
+    for (const [val, col] of (o.marks || [])) { const a = ang(val); ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(Math.cos(a) * (R - 6), Math.sin(a) * (R - 6)); ctx.lineTo(Math.cos(a) * (R - 34), Math.sin(a) * (R - 34)); ctx.stroke(); }
+    ctx.fillStyle = '#8fa0b3'; ctx.font = '600 20px "Saira Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(o.title, 0, o.titleY ?? 40); ctx.font = '15px "Saira", sans-serif'; ctx.fillText(o.units, 0, (o.titleY ?? 40) + 22);
+    ctx.fillStyle = o.warn && o.warn(v) ? '#ff5a4d' : '#e9f1f8'; ctx.font = '28px "Share Tech Mono", monospace';
+    ctx.fillText(o.fmt(v), 0, -34);
+    const a = ang(v);
+    ctx.rotate(a); ctx.fillStyle = '#f2f6fa'; ctx.beginPath(); ctx.moveTo(-14, -5); ctx.lineTo(R - 30, -2); ctx.lineTo(R - 26, 0); ctx.lineTo(R - 30, 2); ctx.lineTo(-14, 5); ctx.closePath(); ctx.fill();
+    ctx.rotate(-a); ctx.fillStyle = '#26323f'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.fill();
+    if (o.sub) { const s = o.sub(v); if (s) { ctx.fillStyle = '#ffb547'; ctx.font = '16px "Share Tech Mono", monospace'; ctx.fillText(s, 0, 92); } }
+    ctx.restore();
+  };
+}
+const gRPM = dial('#gRPM', { min: 0, max: 110, major: 10, minor: 5, a0: -240 * Math.PI / 180, a1: 60 * Math.PI / 180, lbl: t => (t % 20 === 0 ? t / 10 : ''), title: 'RPM', units: '% N2', fmt: v => v.toFixed(0),
+  bands: [[62, 80, '#1f7a46'], [108, 110, '#b3261e']], marks: [[108, '#ff5a4d']], warn: v => v > 108 });
+const gFTIT = dial('#gFTIT', { min: 200, max: 1200, major: 100, minor: 50, lbl: t => (t / 100) % 2 === 0 ? t / 100 : '', title: 'FTIT', units: '°C ×100', fmt: v => v.toFixed(0),
+  bands: [[200, 935, '#1f5a3a'], [935, 980, '#9c7a12'], [980, 1200, '#b3261e']], marks: [[980, '#ff5a4d']], warn: v => v > 980 });
+const gNOZ = dial('#gNOZ', { min: 0, max: 100, major: 20, minor: 10, a0: -210 * Math.PI / 180, a1: 30 * Math.PI / 180, lbl: t => t, title: 'NOZ POS', units: '% open', fmt: v => v.toFixed(0), sub: () => E.ab > 0 ? `AB Z${abZoneLit()}` : '' });
+const gOIL = dial('#gOIL', { min: 0, max: 100, major: 20, minor: 10, a0: -210 * Math.PI / 180, a1: 30 * Math.PI / 180, lbl: t => t, title: 'OIL', units: 'psi', fmt: v => v.toFixed(0),
+  bands: [[25, 65, '#1f5a3a']], warn: v => v > 65 || (E.n2 > 60 && v < 15) });
+// thrust curve (steady state)
+const CURVE = []; for (let t = 10; t <= 100; t += 1) CURVE.push([t, steadyAt(t).F / LBF]);
+function drawCurve() {
+  const cv = $('#curve'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const pl = 64, pr = 12, pt = 14, pb = 40;
+  const X = t => pl + (t - 0) / 100 * (W - pl - pr), Y = f => pt + (1 - f / 32000) * (H - pt - pb);
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '18px "Share Tech Mono", monospace'; ctx.fillStyle = '#8494a7'; ctx.strokeStyle = '#1c2836'; ctx.lineWidth = 1;
+  for (const f of [0, 10000, 20000, 30000]) { ctx.beginPath(); ctx.moveTo(pl, Y(f)); ctx.lineTo(W - pr, Y(f)); ctx.stroke(); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(f ? (f / 1000) + 'k' : '0', pl - 8, Y(f)); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const [t, l] of [[10, 'IDLE'], [70, 'MIL'], [100, 'MAX AB']]) { ctx.strokeStyle = '#2a3a4c'; ctx.beginPath(); ctx.moveTo(X(t), pt); ctx.lineTo(X(t), H - pb); ctx.stroke(); ctx.fillText(l, clamp(X(t), pl + 20, W - pr - 34), H - pb + 8); }
+  ctx.fillStyle = 'rgba(255,140,40,.08)'; ctx.fillRect(X(72), pt, X(100) - X(72), H - pt - pb);
+  ctx.beginPath(); CURVE.forEach(([t, f], i) => i ? ctx.lineTo(X(t), Y(f)) : ctx.moveTo(X(t), Y(f)));
+  ctx.lineTo(X(100), Y(0)); ctx.lineTo(X(10), Y(0)); ctx.closePath(); ctx.fillStyle = 'rgba(255,181,71,.08)'; ctx.fill();
+  ctx.beginPath(); CURVE.forEach(([t, f], i) => i ? ctx.lineTo(X(t), Y(f)) : ctx.moveTo(X(t), Y(f))); ctx.strokeStyle = '#ffb547'; ctx.lineWidth = 2.5; ctx.stroke();
+  const F = E.c.F / LBF;
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(X(E.thr), Y(F), 6, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#ffb547'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.save(); ctx.translate(16, (pt + H - pb) / 2); ctx.rotate(-Math.PI / 2); ctx.fillStyle = '#8494a7'; ctx.textAlign = 'center'; ctx.fillText('lbf', 0, 0); ctx.restore();
+}
+// stations table
+const ST = [
+  ['0', 'Ambient', c => AMB.T, c => AMB.P], ['2', 'Fan face', c => c.T2, c => c.P2], ['21', 'Fan exit', c => c.T21, c => c.P21],
+  ['3', 'HPC exit (CDP)', c => c.T3, c => c.P3], ['4', 'Combustor exit', c => c.T4, c => c.P4], ['41', 'HPT rotor inlet', c => c.T41, c => c.P41],
+  ['45', 'LPT inlet (FTIT)', c => c.T45, c => c.P45], ['5', 'LPT exit', c => c.T5, c => c.P5], ['16', 'Bypass duct', c => c.T21, c => c.P16],
+  ['6', 'Mixer exit', c => c.T6, c => c.P6], ['7', 'Augmentor exit', c => c.T7, c => c.P7], ['8', 'Throat A8', c => c.T7, c => c.P8], ['9', 'Nozzle exit', c => c.T9, c => AMB.P],
+];
+const tb = $('#stTable tbody');
+tb.innerHTML = ST.map((s, i) => `<tr><td class="st">${s[0]}</td><td>${s[1]}</td><td class="n" id="stT${i}"></td><td><div class="bar"><i id="stTb${i}"></i></div></td><td class="n" id="stP${i}"></td><td><div class="bar"><i id="stPb${i}"></i></div></td></tr>`).join('');
+const stEls = ST.map((_, i) => [$('#stT' + i), $('#stTb' + i), $('#stP' + i), $('#stPb' + i)]);
+function updateStations() {
+  const c = E.c;
+  ST.forEach((s, i) => {
+    const T = s[2](c), Pp = s[3](c);
+    const [te, tbar, pe, pbar] = stEls[i];
+    te.textContent = f0(degF(T)); te.title = `${(T - 273.15).toFixed(0)} °C · ${T.toFixed(0)} K`;
+    pe.textContent = (Pp / PSI).toFixed(1); pe.title = `${(Pp / 1000).toFixed(0)} kPa · ${(Pp / AMB.P).toFixed(2)} atm`;
+    cmap(CM_T, T, _c); tbar.style.width = clamp((T - 200) / 1900 * 100, 2, 100) + '%'; tbar.style.background = `rgb(${_c.map(x => Math.round(x * 255)).join(',')})`;
+    pbar.style.width = clamp(Math.log(Pp / AMB.P) / Math.log(34) * 100, 2, 100) + '%'; pbar.style.background = '#5cd6ff';
+  });
+}
+function updateReadouts() {
+  const c = E.c, F = c.F / LBF;
+  const set = (id, html, title) => { const el = $(id); el.innerHTML = html; if (title) el.title = title; };
+  set('#pThrust', `${f0(F)} <small>lbf</small>`, `${(c.F / 1000).toFixed(1)} kN`);
+  set('#pN1', `${E.n1.toFixed(1)}<small>%</small>`); set('#pN2', `${E.n2.toFixed(1)}<small>%</small>`);
+  set('#pW', `${f0(c.W * LB_S)} <small>lb/s</small>`, `${c.W.toFixed(1)} kg/s`);
+  const wf = (c.Wf + c.Wfab) * PPH;
+  set('#pSFC', F > 50 ? `${(wf / F).toFixed(2)} <small>lb/lbf·h</small>` : '– <small>lb/lbf·h</small>', F > 50 ? `${(wf / F * 28.33).toFixed(1)} g/kN·s` : '');
+  set('#pOPR', c.OPR.toFixed(1)); set('#pTW', (F / 3920).toFixed(2), 'Dry weight 3,920 lb');
+  set('#pWf', `${f0(c.Wf * PPH)} <small>pph</small>`, `${(c.Wf * 3600).toFixed(0)} kg/h`);
+  set('#pWfab', `${f0(c.Wfab * PPH)} <small>pph</small>`, `${(c.Wfab * 3600).toFixed(0)} kg/h`);
+  set('#pV9', `${f0(c.V9 * 3.2808)} <small>ft/s</small>`, `${c.V9.toFixed(0)} m/s`);
+  $('#ffNum').innerHTML = `${f0(Math.round(E.wfDisp / 10) * 10)} <small>PPH</small>`;
+  // state pill
+  const pill = $('#statePill');
+  let txt, cls;
+  if (E.phase === 'OFF') { txt = E.n2 > 1 ? `SHUTDOWN · ${E.n2.toFixed(0)}%` : 'ENGINE OFF'; cls = 'off'; }
+  else if (E.phase === 'START') { txt = E.lit ? `LIGHT-OFF · ACCEL ${E.n2.toFixed(0)}%` : `JFS MOTORING · ${E.n2.toFixed(0)}%`; cls = 'start'; }
+  else if (E.ab > 0) { txt = E.thr >= 99.5 ? 'MAX AB · ZONE 5' : `AFTERBURNER · ZONE ${abZoneLit()}`; cls = 'ab'; }
+  else if (E.thr >= 70) { txt = E.thr >= 72 ? 'MIL · AB LIGHTING' : 'MILITARY POWER'; cls = 'run'; }
+  else if (E.thr <= 10.5) { txt = 'RUNNING · IDLE'; cls = 'run'; }
+  else { txt = `PART POWER · ${E.thr.toFixed(0)}%`; cls = 'run'; }
+  pill.textContent = txt; pill.className = 'pill ' + cls;
+  if (!$('#sysinfo').hidden) { const S = SYSTEMS.find(s => s.id === UI.sys); const el = $('#sysVals'); if (el && S.vals) el.innerHTML = S.vals(); }
+  updateCardLive();
+}
+
+/* ============================================================
+   14. SOUND (Web Audio, synthesized)
+   ============================================================ */
+let AU = null;
+function startAudio() {
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ac.createGain(); master.gain.value = 0.0; master.connect(ac.destination);
+  const nb = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const noise = ac.createBufferSource(); noise.buffer = nb; noise.loop = true;
+  const roarF = ac.createBiquadFilter(); roarF.type = 'lowpass'; roarF.frequency.value = 400; const roarG = ac.createGain(); roarG.gain.value = 0;
+  noise.connect(roarF).connect(roarG).connect(master);
+  const abF = ac.createBiquadFilter(); abF.type = 'lowpass'; abF.frequency.value = 120; const abG = ac.createGain(); abG.gain.value = 0;
+  noise.connect(abF).connect(abG).connect(master);
+  const whine = ac.createOscillator(); whine.type = 'sawtooth'; const wF = ac.createBiquadFilter(); wF.type = 'bandpass'; wF.Q.value = 8; const wG = ac.createGain(); wG.gain.value = 0;
+  whine.connect(wF).connect(wG).connect(master);
+  const fan = ac.createOscillator(); fan.type = 'triangle'; const fG = ac.createGain(); fG.gain.value = 0; fan.connect(fG).connect(master);
+  noise.start(); whine.start(); fan.start();
+  AU = { ac, master, roarG, roarF, abG, whine, wF, wG, fan, fG };
+  master.gain.setTargetAtTime(0.5, ac.currentTime, 0.3);
+}
+$('#soundBtn').onclick = () => {
+  const b = $('#soundBtn');
+  if (!AU) { try { startAudio(); b.textContent = 'Engine sound: on'; b.setAttribute('aria-pressed', 'true'); } catch (e) { b.textContent = 'Sound unavailable'; } return; }
+  if (AU.ac.state === 'running') { AU.ac.suspend(); b.textContent = 'Engine sound: off'; b.setAttribute('aria-pressed', 'false'); }
+  else { AU.ac.resume(); b.textContent = 'Engine sound: on'; b.setAttribute('aria-pressed', 'true'); }
+};
+function updateAudio() {
+  if (!AU || AU.ac.state !== 'running') return;
+  const t = AU.ac.currentTime, k = 0.15;
+  const n2 = E.n2 / 100, n1 = E.n1 / 100, thrust = E.c.F / (29500 * LBF);
+  AU.whine.frequency.setTargetAtTime(220 + n2 * 2600, t, k); AU.wF.frequency.setTargetAtTime(400 + n2 * 2900, t, k);
+  AU.wG.gain.setTargetAtTime(0.05 * Math.min(1, n2 * 1.5), t, k);
+  AU.fan.frequency.setTargetAtTime(60 + n1 * 520, t, k); AU.fG.gain.setTargetAtTime(0.04 * n1, t, k);
+  AU.roarF.frequency.setTargetAtTime(300 + thrust * 2200, t, k); AU.roarG.gain.setTargetAtTime(0.6 * Math.pow(thrust, 0.7) * (E.lit ? 1 : 0.2), t, k);
+  AU.abG.gain.setTargetAtTime(1.6 * E.ab, t, 0.3);
+}
+
+/* ============================================================
+   15. MAIN LOOP
+   ============================================================ */
+const blackbody = (T, out) => { // rough incandescence colour, T in K
+  const x = clamp((T - 800) / 1400, 0, 1);
+  out.setRGB(1.0 * x ** 0.6, 0.35 * x ** 1.4, 0.08 * x ** 2.5); return out;
+};
+const _col = new THREE.Color();
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  // shift the projection centre into the free space between the side panels
+  const lo = $('#left').classList.contains('open') && w > 980, ro = $('#right').classList.contains('open') && w > 980;
+  const L = lo ? $('#left').getBoundingClientRect().right : 0, Rr = ro ? $('#right').getBoundingClientRect().left : w;
+  const cx = (L + Rr) / 2, free = Rr - L;
+  camera.setViewOffset(w, h, w / 2 - cx, -18, w, h);
+  camera.zoom = clamp(free / (w * 0.68), 0.5, 1.05) * clamp((w / h) / 1.6, 0.6, 1);
+  camera.updateProjectionMatrix();
+  pU.uScale.value = h * renderer.getPixelRatio() / (2 * Math.tan(camera.fov * Math.PI / 360));
+}
+window.addEventListener('resize', resize); resize();
+setSection('quarter');
+applySystem('all');
+
+let last = performance.now(), uiT = 0, gaugeT = 0;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!window.__F110?.paused) tick(dt);
+  requestAnimationFrame(frame);
+}
+function tick(dt) {
+  TIME.value += dt * UI.anim;
+  stepEngine(dt);
+  updateNozzleGeom();
+  updateNozzleMeshes();
+
+  // explode animation
+  if (UI.explodeTarget !== null) {
+    UI.explode += (UI.explodeTarget - UI.explode) * Math.min(1, dt * 3.2);
+    if (Math.abs(UI.explode - UI.explodeTarget) < 0.002) { UI.explode = UI.explodeTarget; UI.explodeTarget = null; }
+    $('#explode').value = UI.explode;
+  }
+  const ex = UI.explode, exE = ex * ex * (3 - 2 * ex);
+  for (const g of Object.values(M)) g.position.copy(g.userData.offset).multiplyScalar(exE);
+  for (const m of partMeshes) if (m.userData.casing) m.position.y = m.userData.base.y + (UI.radial ? exE * 0.75 : 0);
+  M.ext.visible = ex < 0.15;
+  $('#labels').classList.toggle('compact', ex < 0.3);
+  for (const t of tubes) if (t.parent === M.ext) t.visible = ex < 0.15;
+
+  // rotors
+  const vis = reduceMotion ? 0.25 : 1;
+  E.angLP += (E.n1 / 100) * 1.4 * TAU * dt * UI.anim * vis;
+  E.angHP -= (E.n2 / 100) * 1.9 * TAU * dt * UI.anim * vis;   // counter-rotating
+  for (const r of rotors) r.obj.rotation.x = r.spool === 'LP' ? E.angLP : E.angHP;
+  for (const g of agbGears) { if (g.axis === 'y') g.mesh.rotateY(g.ratio * (E.n2 / 100) * dt * UI.anim * 6 * vis); else g.mesh.rotation.z += g.ratio * (E.n2 / 100) * dt * UI.anim * 6 * vis; }
+
+  // systems flow speeds
+  const fuelFrac = E.c.Wf / 1.75, abFrac = E.c.Wfab / 5;
+  GRP.fuel.u.speed.value = 0.4 + 2.2 * fuelFrac; GRP.fuel.u.flow.value = E.lit ? 1 : (E.n2 > 5 ? 0.2 : 0);
+  GRP.fuelab.u.speed.value = 0.4 + 2.4 * abFrac; GRP.fuelab.u.flow.value = E.ab > 0 ? 1 : 0;
+  GRP.oil.u.speed.value = GRP.scav.u.speed.value = 0.2 + 1.6 * E.n2 / 100; GRP.oil.u.flow.value = GRP.scav.u.flow.value = clamp(E.oil / 20, 0, 1);
+  GRP.bleed.u.speed.value = GRP.cool.u.speed.value = 0.3 + 2 * E.c.P3 / (31 * AMB.P); GRP.bleed.u.flow.value = GRP.cool.u.flow.value = clamp(E.n2 / 40, 0, 1);
+  GRP.ctrl.u.speed.value = 1.2; GRP.ctrl.u.flow.value = E.n2 > 10 || E.phase !== 'OFF' ? 1 : 0.15;
+  GRP.hyd.u.speed.value = 0.6 + Math.min(3, Math.abs(E.noz - (E._nozPrev ?? E.noz)) / dt * 0.05); GRP.hyd.u.flow.value = E.n2 > 20 ? 1 : 0; E._nozPrev = E.noz;
+
+  // flames, glow, plume
+  const lit = E.lit, wfFrac = clamp(E.c.Wf / 1.7, 0, 1.1);
+  const sysFlame = UI.sys === 'all' || UI.sys === 'fuel';
+  combU.uI.value = lit ? 0.35 + 0.75 * wfFrac : 0; combFlame.visible = UI.flame && lit && ex < 0.5 && sysFlame;
+  const zl = abZoneLit();
+  for (let z = 0; z < 5; z++) for (const o of zoneObjs[z]) {
+    const m = o.material; if (m === ghostMat || !m.emissive) continue;
+    m.emissive.setHex(z < zl ? 0xff7a10 : 0x000000); m.emissiveIntensity = z < zl ? 0.9 : 0;
+  }
+  const augLen = NZ.xT - 2.9;
+  augFlame.position.x = 2.9; augFlame.scale.set(augLen + 0.25 * E.ab, 0.42, 0.42);
+  augU.uI.value = E.ab > 0 ? 0.25 + 0.9 * E.ab : 0; augFlame.visible = UI.flame && E.ab > 0.001 && ex < 0.5 && sysFlame;
+  const pLen = 1.2 + 3.4 * E.ab + 0.6 * clamp((E.n2 - 80) / 18, 0, 1);
+  plume.position.x = NZ.xE; plume.scale.set(pLen, NZ.rE * 0.96, NZ.rE * 0.96);
+  plumeU.uAB.value = E.ab > 0 ? 0.35 + 0.85 * E.ab : 0; plumeU.uMil.value = lit ? clamp((E.n2 - 85) / 13, 0, 1) : 0; plumeU.uLen.value = pLen;
+  plume.visible = UI.flame && ex < 0.5 && (plumeU.uAB.value > 0 || plumeU.uMil.value > 0.02);
+  const dSp = (0.42 + 0.22 * E.ab) * (NZ.rE / 0.33);
+  diamonds.forEach((d, i) => {
+    const x = NZ.xE + dSp * (i + 0.7);
+    d.position.set(x, 0, 0);
+    const rr = NZ.rE * (0.42 - i * 0.03);
+    d.scale.set(dSp * 0.32, rr, rr);
+    const strength = (E.ab > 0 ? 0.45 + 0.6 * E.ab : 0.22 * plumeU.uMil.value) * Math.exp(-i * 0.38) * (0.9 + 0.1 * Math.sin(TIME.value * 30 + i));
+    d.userData.u.uI.value = strength; d.userData.u.uHue.value = E.ab > 0 ? 0.85 : 0.1;
+    d.visible = plume.visible && strength > 0.01 && x < NZ.xE + pLen * 0.85;
+  });
+  // incandescence
+  const t45 = E.c.T45, t7 = E.c.T7;
+  for (const m of hotBladeMats) if (m !== ghostMat) { blackbody(t45 + 120, m.emissive); m.emissiveIntensity = 0.6; }
+  for (const m of nozMats) if (m !== ghostMat) { blackbody(t7 - 150, m.emissive); m.emissiveIntensity = 0.55; }
+  if (augLinerMat) { blackbody(t7 - 100, augLinerMat.emissive); augLinerMat.emissiveIntensity = 0.6; }
+  // hover / selection highlight
+  for (const m of allMats) if (m.userData.hl) { m.emissive.setHex(0x3a6dff); m.emissiveIntensity = 0.55; }
+  for (const m of allMats) if (m.userData.hlPrev && !m.userData.hl && !hotBladeMats.includes(m) && !nozMats.includes(m) && m !== augLinerMat) { m.emissive.setHex(0); m.emissiveIntensity = 1; }
+  for (const m of allMats) m.userData.hlPrev = m.userData.hl;
+
+  updateParticles(dt);
+
+  // camera tween
+  if (camTween) {
+    camTween.k = Math.min(1, camTween.k + dt * 1.6); const k = smooth(0, 1, camTween.k);
+    camera.position.lerpVectors(camTween.p0, camTween.p1, k); controls.target.lerpVectors(camTween.t0, camTween.t1, k);
+    if (camTween.k >= 1) camTween = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+
+  uiT += dt; gaugeT += dt;
+  if (gaugeT > 0.05) { gaugeT = 0; gRPM(E.n2); gFTIT(Math.max(200, E.ftit)); gNOZ(E.noz); gOIL(E.oil); }
+  if (uiT > 0.15) { uiT = 0; updateReadouts(); updateStations(); drawCurve(); updateAudio(); }
+}
+$('#loading').remove();
+requestAnimationFrame(frame);
+window.__F110 = { tick, stepEngine, paused: false, E, cycle, steadyAt, setThrottle, setSection, applySystem, UI, LBF, PPH };
+</script>
+
+</body>
+</html>
