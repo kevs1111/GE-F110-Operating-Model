@@ -36,7 +36,7 @@ Model results at sea-level static, standard day:
 | Setting | Thrust | Fuel flow | FTIT | Nozzle |
 |---|---|---|---|---|
 | Idle (70% N2) | ~944 lbf | 1,626 pph | 419 °C | 100% |
-| MIL | 17,155 lbf | 13,590 pph | 943 °C | 9% |
+| MIL | 17,155 lbf | 13,590 pph | 945 °C | 9% |
 | Max AB | 29,500 lbf | 52,340 pph | 945 °C | 59% |
 
 - MIL and max-AB thrust are calibrated to match published figures. Airflow (270 lb/s), overall pressure ratio (30.7) and bypass ratio (0.76) are also published values.
