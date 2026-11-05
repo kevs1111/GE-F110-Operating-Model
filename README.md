@@ -1,6 +1,6 @@
 # F-16 Fighting Falcon: GE F110-GE-129 Operating Model
 
-Try it live: kevs1111.github.io/GE-F110-Operating-Model
+**[▶ Try it live](https://kevs1111.github.io/GE-F110-Operating-Model/)**
 
 
 <img width="1000" height="518" alt="EngineAnimation" src="https://github.com/user-attachments/assets/b9672a1b-8233-4088-a16f-52235df02685" />
