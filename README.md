@@ -8,11 +8,11 @@
 
 An interactive 3D model of the General Electric F110-GE-129 afterburning turbofan, the engine in the F-16C Block 50/70. It runs in a web browser. The engine is driven by a calibrated Brayton-cycle model: move the throttle from cutoff through idle and MIL to max afterburner, and the spools, gas flow, flame, nozzle and cockpit gauges respond.
 
-![MIL power, quarter cutaway](screenshots/mil-quarter-cutaway.png)
 
 ## Run it
 
-Open `index.html` in a modern desktop browser (Chrome, Edge, Firefox or Safari). Nothing needs installing or building. The page loads [three.js](https://threejs.org) 0.160.0 from the jsDelivr CDN, so it needs an internet connection.
+Easiest: use the live site: **[▶ Try it live](https://kevs1111.github.io/GE-F110-Operating-Model/)**
+To run locally, open `index.html` in a modern desktop browser (Chrome, Edge, Firefox or Safari). Nothing needs installing or building. The page loads [three.js](https://threejs.org) 0.160.0 from the jsDelivr CDN, so it needs an internet connection.
 
 ## Features
 
@@ -68,6 +68,7 @@ This is an educational visualization built from public sources. It is not a main
 |---|---|
 | ![Afterburner zone 2](screenshots/afterburner-zone2.png) | ![Exploded view](screenshots/exploded-view.png) |
 | ![Fuel system](screenshots/fuel-system.png) | ![Accessory drive](screenshots/accessory-drive.png) |
+![MIL power, quarter cutaway](screenshots/mil-quarter-cutaway.png)
 
 ## License
 
